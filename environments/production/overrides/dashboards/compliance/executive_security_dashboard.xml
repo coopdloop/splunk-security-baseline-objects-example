@@ -1,0 +1,206 @@
+<dashboard version="1.1" theme="light">
+  <label>Executive Security Dashboard - Production</label>
+  <description>Executive-level security metrics and compliance status for production environment</description>
+  
+  <fieldset submitButton="false" autoRun="true">
+    <input type="time" token="time_picker">
+      <label>Time Range</label>
+      <default>
+        <earliest>-30d@d</earliest>
+        <latest>now</latest>
+      </default>
+    </input>
+  </fieldset>
+  
+  <!-- Executive KPIs -->
+  <row>
+    <panel>
+      <title>Security Posture Score</title>
+      <single>
+        <search>
+          <query>
+            `security_indexes`
+            | eval security_score=case(
+                severity="critical",0,
+                severity="high",25,
+                severity="medium",75,
+                severity="low",90,
+                1=1,100
+            )
+            | stats avg(security_score) as overall_score
+            | eval overall_score=round(overall_score,0)
+          </query>
+          <earliest>$time_picker.earliest$</earliest>
+          <latest>$time_picker.latest$</latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="colorBy">value</option>
+        <option name="colorMode">continuous</option>
+        <option name="rangeColors">["0xFF0000","0xFFFF00","0x00FF00"]</option>
+        <option name="rangeValues">[50,75]</option>
+        <option name="numberPrecision">0</option>
+        <option name="unitPosition">after</option>
+        <option name="unit">%</option>
+      </single>
+    </panel>
+    <panel>
+      <title>Compliance Status</title>
+      <single>
+        <search>
+          <query>
+            | inputlookup compliance_status.csv
+            | stats avg(compliance_percentage) as avg_compliance
+            | eval avg_compliance=round(avg_compliance,1)
+          </query>
+        </search>
+        <option name="colorBy">value</option>
+        <option name="rangeColors">["0xFF0000","0xFFFF00","0x00FF00"]</option>
+        <option name="rangeValues">[85,95]</option>
+        <option name="unitPosition">after</option>
+        <option name="unit">%</option>
+      </single>
+    </panel>
+    <panel>
+      <title>Mean Time to Resolution</title>
+      <single>
+        <search>
+          <query>
+            index=security tag=incident
+            | eval resolution_time=(resolved_time-created_time)/3600
+            | stats avg(resolution_time) as mttr
+            | eval mttr=round(mttr,1)
+          </query>
+          <earliest>$time_picker.earliest$</earliest>
+          <latest>$time_picker.latest$</latest>
+        </search>
+        <option name="unitPosition">after</option>
+        <option name="unit">hrs</option>
+        <option name="colorBy">value</option>
+        <option name="rangeColors">["0x00FF00","0xFFFF00","0xFF0000"]</option>
+        <option name="rangeValues">[4,24]</option>
+      </single>
+    </panel>
+    <panel>
+      <title>Critical Assets Protected</title>
+      <single>
+        <search>
+          <query>
+            | inputlookup asset_inventory.csv
+            | where criticality="critical"
+            | stats count as critical_assets
+            | eval protection_status="Protected"
+          </query>
+        </search>
+        <option name="colorBy">value</option>
+        <option name="colorMode">none</option>
+      </single>
+    </panel>
+  </row>
+  
+  <!-- Risk and Threat Overview -->
+  <row>
+    <panel>
+      <title>Risk Trend (30 Days)</title>
+      <chart>
+        <search>
+          <query>
+            `security_indexes`
+            | bucket _time span=1d
+            | eval risk_score=case(
+                severity="critical",100,
+                severity="high",75,
+                severity="medium",50,
+                severity="low",25,
+                1=1,10
+            )
+            | stats avg(risk_score) as daily_risk by _time
+            | eval risk_level=case(
+                daily_risk>=75,"High Risk",
+                daily_risk>=50,"Medium Risk",
+                daily_risk>=25,"Low Risk",
+                1=1,"Minimal Risk"
+            )
+          </query>
+          <earliest>$time_picker.earliest$</earliest>
+          <latest>$time_picker.latest$</latest>
+        </search>
+        <option name="charting.chart">line</option>
+        <option name="charting.axisTitleX.text">Date</option>
+        <option name="charting.axisTitleY.text">Risk Score</option>
+        <option name="charting.legend.placement">none</option>
+      </chart>
+    </panel>
+    <panel>
+      <title>Regulatory Compliance Status</title>
+      <table>
+        <search>
+          <query>
+            | makeresults
+            | eval frameworks=split("PCI-DSS,SOX,GDPR,NIST,ISO27001",",")
+            | mvexpand frameworks
+            | eval compliance_percentage=case(
+                frameworks="PCI-DSS",98.5,
+                frameworks="SOX",99.2,
+                frameworks="GDPR",96.8,
+                frameworks="NIST",97.1,
+                frameworks="ISO27001",95.9
+            )
+            | eval status=case(
+                compliance_percentage>=98,"Compliant",
+                compliance_percentage>=95,"Minor Issues",
+                1=1,"Action Required"
+            )
+            | table frameworks, compliance_percentage, status
+            | rename frameworks AS "Framework", compliance_percentage AS "Compliance %", status AS "Status"
+          </query>
+        </search>
+        <format type="color" field="Status">
+          <colorPalette type="map">{"Compliant":#00FF00,"Minor Issues":#FFFF00,"Action Required":#FF0000}</colorPalette>
+        </format>
+      </table>
+    </panel>
+  </row>
+  
+  <!-- Business Impact Metrics -->
+  <row>
+    <panel>
+      <title>Security Incidents by Business Impact</title>
+      <chart>
+        <search>
+          <query>
+            index=security tag=incident
+            | eval business_impact=case(
+                match(description,"revenue|financial|customer"),"High",
+                match(description,"operational|service"),"Medium", 
+                1=1,"Low"
+            )
+            | stats count by business_impact
+          </query>
+          <earliest>$time_picker.earliest$</earliest>
+          <latest>$time_picker.latest$</latest>
+        </search>
+        <option name="charting.chart">pie</option>
+        <option name="charting.legend.placement">right</option>
+      </chart>
+    </panel>
+    <panel>
+      <title>Security Investment ROI</title>
+      <single>
+        <search>
+          <query>
+            | makeresults 
+            | eval prevented_incidents=127, cost_per_incident=50000, security_investment=2000000
+            | eval roi=((prevented_incidents*cost_per_incident-security_investment)/security_investment)*100
+            | eval roi=round(roi,0)
+            | fields roi
+          </query>
+        </search>
+        <option name="unitPosition">after</option>
+        <option name="unit">%</option>
+        <option name="colorBy">value</option>
+        <option name="rangeColors">["0xFF0000","0xFFFF00","0x00FF00"]</option>
+        <option name="rangeValues">[100,300]</option>
+      </single>
+    </panel>
+  </row>
+</dashboard>

@@ -1,0 +1,208 @@
+# Splunk Technical Add-on Repository .gitignore
+
+# ============================================================================
+# Splunk-Specific Files
+# ============================================================================
+
+# Splunk runtime files
+local/
+*.splunkrc
+dispatch/
+var/
+fishbucket/
+*.py[cod]
+__pycache__/
+
+# Splunk logs and temporary files
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
+
+# Splunk app packaging
+*.tar.gz
+*.tgz
+*.spl
+
+# Splunk indexes and databases  
+**/db/
+**/defaultdb/
+**/summary/
+**/hot*/
+**/cold*/
+**/thawed*/
+
+# ============================================================================
+# Sensitive Information
+# ============================================================================
+
+# API keys and credentials
+*.key
+*.pem
+*.p12
+*.cert
+**/secrets/
+.env
+.env.local
+.env.production
+config/local/
+passwords.conf
+
+# Personal configuration files
+local.meta
+user-prefs.conf
+
+# ============================================================================
+# Development Files  
+# ============================================================================
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.settings/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# ============================================================================
+# Language-Specific
+# ============================================================================
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+.pytest_cache/
+.coverage
+htmlcov/
+
+# JavaScript/Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ============================================================================
+# Documentation and Generated Files
+# ============================================================================
+
+# Generated documentation
+docs/_build/
+site/
+
+# Backup files
+*.bak
+*.backup
+*.orig
+
+# ============================================================================
+# Splunk Knowledge Objects (Conditional)
+# ============================================================================
+
+# Uncomment these if you don't want to track certain generated files
+# savedsearches.conf.bak
+# collections.conf
+# workflow_actions.conf
+
+# Large lookup files (uncomment if too large for git)
+# lookups/*.csv
+# lookups/*.gz
+# lookups/*.kmz
+
+# ============================================================================
+# Testing and Quality Assurance
+# ============================================================================
+
+# Test results
+test-results/
+coverage/
+*.cover
+.nyc_output/
+
+# Quality tools
+.eslintcache
+.sonarqube/
+
+# ============================================================================
+# Deployment and CI/CD
+# ============================================================================
+
+# Deployment artifacts
+deploy/
+release/
+staging/
+
+# CI/CD files (keep these if needed for your pipeline)
+# .github/
+# .gitlab-ci.yml
+# Jenkinsfile
+
+# ============================================================================
+# Sample/Example Data
+# ============================================================================
+
+# Large sample data files
+samples/*.log
+samples/*.json
+samples/*.csv
+test-data/
+
+# ============================================================================
+# Repository Management
+# ============================================================================
+
+# Requirements gathering artifacts (optional - may want to keep for history)
+requirements/
+
+# Version control
+.git/
+*.diff
+*.patch
+
+# ============================================================================
+# Platform-Specific
+# ============================================================================
+
+# Windows
+*.lnk
+desktop.ini
+
+# macOS
+.AppleDouble
+.LSOverride
+Icon?
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*

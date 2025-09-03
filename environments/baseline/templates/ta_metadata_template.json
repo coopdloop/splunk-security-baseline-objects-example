@@ -1,0 +1,94 @@
+{
+  "ta_info": {
+    "name": "",
+    "version": "",
+    "vendor": "",
+    "product": "",
+    "description": "",
+    "category": "",
+    "subcategory": ""
+  },
+  "compatibility": {
+    "splunk_version_min": "",
+    "splunk_version_max": "",
+    "splunk_cloud_compatible": false,
+    "enterprise_security_required": false,
+    "python_version": "",
+    "dependencies": []
+  },
+  "security_impact": {
+    "data_sensitivity": "",
+    "pii_handling": false,
+    "encryption_required": false,
+    "audit_requirements": "",
+    "compliance_frameworks": []
+  },
+  "data_models": {
+    "cim_compliance": false,
+    "supported_data_models": [],
+    "custom_fields_added": [],
+    "acceleration_recommended": false
+  },
+  "knowledge_objects": {
+    "field_extractions": {
+      "count": 0,
+      "sourcetypes": []
+    },
+    "lookups": {
+      "count": 0,
+      "files": []
+    },
+    "macros": {
+      "count": 0,
+      "names": []
+    },
+    "eventtypes": {
+      "count": 0,
+      "categories": []
+    },
+    "tags": {
+      "count": 0,
+      "applied_to": []
+    }
+  },
+  "dashboards": {
+    "count": 0,
+    "categories": [],
+    "saved_searches": 0,
+    "alerts_configured": 0
+  },
+  "installation": {
+    "installation_method": "",
+    "configuration_required": false,
+    "manual_steps": [],
+    "restart_required": false,
+    "index_creation_needed": false
+  },
+  "maintenance": {
+    "update_frequency": "",
+    "backup_required": false,
+    "monitoring_recommended": true,
+    "performance_impact": ""
+  },
+  "documentation": {
+    "readme_included": false,
+    "installation_guide": false,
+    "configuration_guide": false,
+    "troubleshooting_guide": false,
+    "use_case_examples": false
+  },
+  "testing": {
+    "test_data_included": false,
+    "validation_queries": [],
+    "performance_tested": false,
+    "compatibility_tested": false
+  },
+  "metadata": {
+    "created_date": "",
+    "last_updated": "",
+    "reviewed_by": "",
+    "approved_by": "",
+    "deployment_date": "",
+    "status": ""
+  }
+}

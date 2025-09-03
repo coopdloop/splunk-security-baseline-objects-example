@@ -1,0 +1,6 @@
+ip,hostname,asset_type,criticality,owner,department,location
+10.0.1.10,dev-dc01.dev.local,domain_controller,high,Dev Team,IT,DevLab-A
+10.0.1.11,dev-db01.dev.local,database_server,medium,Dev Team,IT,DevLab-A
+10.0.1.20,dev-web01.dev.local,web_server,low,Dev Team,IT,DevLab-B
+10.0.1.50,dev-workstation01,workstation,low,Developer,IT,DevOffice
+10.0.1.100,dev-firewall01,firewall,high,Dev Team,IT,DevLab-A

@@ -1,0 +1,212 @@
+<dashboard version="1.1" theme="light">
+  <label>Dashboard Title Here</label>
+  <description>Brief description of dashboard purpose and target audience</description>
+  
+  <!-- Input Controls -->
+  <fieldset submitButton="true" autoRun="false">
+    <input type="time" token="time_picker">
+      <label>Time Range</label>
+      <default>
+        <earliest>-24h@h</earliest>
+        <latest>now</latest>
+      </default>
+    </input>
+    <input type="dropdown" token="index_filter">
+      <label>Data Source</label>
+      <choice value="*">All Indexes</choice>
+      <choice value="security">Security</choice>
+      <choice value="firewall">Firewall</choice>
+      <choice value="endpoint">Endpoint</choice>
+      <default>*</default>
+    </input>
+    <input type="dropdown" token="severity_filter">
+      <label>Severity Level</label>
+      <choice value="*">All Severities</choice>
+      <choice value="critical">Critical</choice>
+      <choice value="high">High</choice>
+      <choice value="medium">Medium</choice>
+      <choice value="low">Low</choice>
+      <default>*</default>
+    </input>
+  </fieldset>
+  
+  <!-- Key Metrics Row -->
+  <row>
+    <panel>
+      <title>Total Events</title>
+      <single>
+        <search>
+          <query>
+            index=$index_filter$ severity=$severity_filter$
+            | stats count
+          </query>
+          <earliest>$time_picker.earliest$</earliest>
+          <latest>$time_picker.latest$</latest>
+        </search>
+        <option name="drilldown">none</option>
+        <option name="colorBy">value</option>
+        <option name="numberPrecision">0</option>
+        <option name="showSparkline">1</option>
+        <option name="showTrendIndicator">1</option>
+      </single>
+    </panel>
+    <panel>
+      <title>High Priority Alerts</title>
+      <single>
+        <search>
+          <query>
+            index=$index_filter$ severity IN ("critical","high")
+            | stats count
+          </query>
+          <earliest>$time_picker.earliest$</earliest>
+          <latest>$time_picker.latest$</latest>
+        </search>
+        <option name="colorBy">value</option>
+        <option name="colorMode">none</option>
+        <option name="numberPrecision">0</option>
+        <option name="showSparkline">1</option>
+      </single>
+    </panel>
+    <panel>
+      <title>Unique Sources</title>
+      <single>
+        <search>
+          <query>
+            index=$index_filter$ severity=$severity_filter$
+            | stats dc(src_ip) as unique_sources
+          </query>
+          <earliest>$time_picker.earliest$</earliest>
+          <latest>$time_picker.latest$</latest>
+        </search>
+        <option name="numberPrecision">0</option>
+        <option name="showSparkline">1</option>
+      </single>
+    </panel>
+  </row>
+  
+  <!-- Main Analysis Row -->
+  <row>
+    <panel>
+      <title>Top Event Categories</title>
+      <chart>
+        <search>
+          <query>
+            index=$index_filter$ severity=$severity_filter$
+            | stats count by category
+            | sort -count
+            | head 10
+          </query>
+          <earliest>$time_picker.earliest$</earliest>
+          <latest>$time_picker.latest$</latest>
+        </search>
+        <option name="charting.chart">pie</option>
+        <option name="charting.legend.placement">right</option>
+        <option name="charting.legend.labelStyle.overflowMode">ellipsisMiddle</option>
+      </chart>
+    </panel>
+    <panel>
+      <title>Event Timeline</title>
+      <chart>
+        <search>
+          <query>
+            index=$index_filter$ severity=$severity_filter$
+            | bucket _time span=1h
+            | stats count by _time, severity
+          </query>
+          <earliest>$time_picker.earliest$</earliest>
+          <latest>$time_picker.latest$</latest>
+        </search>
+        <option name="charting.chart">area</option>
+        <option name="charting.axisTitleX.text">Time</option>
+        <option name="charting.axisTitleY.text">Event Count</option>
+        <option name="charting.chart.stackMode">stacked</option>
+        <option name="charting.legend.placement">bottom</option>
+      </chart>
+    </panel>
+  </row>
+  
+  <!-- Detailed Analysis Row -->
+  <row>
+    <panel>
+      <title>Top Sources by Activity</title>
+      <table>
+        <search>
+          <query>
+            index=$index_filter$ severity=$severity_filter$
+            | stats count, dc(dest_ip) as targets by src_ip
+            | lookup threat_indicators threat_indicator AS src_ip OUTPUTNEW threat_type, confidence
+            | lookup asset_inventory ip AS src_ip OUTPUTNEW asset_type, hostname, owner
+            | fillnull value="unknown" threat_type, confidence, asset_type, hostname, owner
+            | sort -count
+            | head 20
+          </query>
+          <earliest>$time_picker.earliest$</earliest>
+          <latest>$time_picker.latest$</latest>
+        </search>
+        <option name="drilldown">cell</option>
+        <format type="color" field="count">
+          <colorPalette type="list">[#53A051,#F8BE34,#F1813F,#DC4E41]</colorPalette>
+          <scale type="threshold">10,50,100</scale>
+        </format>
+        <format type="color" field="confidence">
+          <colorPalette type="list">[#DC4E41,#F1813F,#F8BE34,#53A051]</colorPalette>
+          <scale type="threshold">low,medium,high</scale>
+        </format>
+        <drilldown>
+          <link target="_blank">/app/search/search?q=index=$index_filter$ src_ip="$row.src_ip$" | table _time, dest_ip, action, details</link>
+        </drilldown>
+      </table>
+    </panel>
+  </row>
+  
+  <!-- Geographic and Risk Analysis -->
+  <row>
+    <panel>
+      <title>Geographic Distribution</title>
+      <map>
+        <search>
+          <query>
+            index=$index_filter$ severity=$severity_filter$ `external_networks`
+            | stats count by src_ip
+            | lookup geoip_lookup ip AS src_ip OUTPUTNEW lat, lon, country
+            | where isnotnull(lat) AND isnotnull(lon)
+            | geostats latfield=lat longfield=lon count
+          </query>
+          <earliest>$time_picker.earliest$</earliest>
+          <latest>$time_picker.latest$</latest>
+        </search>
+        <option name="mapping.type">marker</option>
+        <option name="mapping.markerSize">medium</option>
+      </map>
+    </panel>
+    <panel>
+      <title>Risk Assessment</title>
+      <table>
+        <search>
+          <query>
+            index=$index_filter$ severity=$severity_filter$
+            | eval risk_score=case(
+                severity="critical",100,
+                severity="high",75,
+                severity="medium",50,
+                severity="low",25,
+                1=1,10
+            )
+            | lookup asset_inventory ip AS dest_ip OUTPUTNEW criticality
+            | eval adjusted_risk=if(criticality="critical",risk_score*1.5,risk_score)
+            | stats avg(adjusted_risk) as avg_risk, sum(adjusted_risk) as total_risk by dest_ip
+            | lookup asset_inventory ip AS dest_ip OUTPUTNEW hostname, asset_type, owner
+            | sort -total_risk
+            | head 15
+          </query>
+          <earliest>$time_picker.earliest$</earliest>
+          <latest>$time_picker.latest$</latest>
+        </search>
+        <format type="color" field="total_risk">
+          <colorPalette type="list">[#53A051,#F8BE34,#F1813F,#DC4E41]</colorPalette>
+          <scale type="threshold">100,300,500</scale>
+        </format>
+      </table>
+    </panel>
+  </row>
+</dashboard>

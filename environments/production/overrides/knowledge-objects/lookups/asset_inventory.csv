@@ -1,0 +1,10 @@
+ip,hostname,asset_type,criticality,owner,department,location
+192.168.1.10,prod-dc01.corp.local,domain_controller,critical,IT Security,IT,DataCenter-Primary
+192.168.1.11,prod-dc02.corp.local,domain_controller,critical,IT Security,IT,DataCenter-Secondary
+192.168.1.20,prod-db01.corp.local,database_server,critical,Database Team,IT,DataCenter-Primary
+192.168.1.21,prod-db02.corp.local,database_server,critical,Database Team,IT,DataCenter-Secondary
+192.168.1.30,prod-web01.corp.local,web_server,high,Web Team,IT,DMZ-Primary
+192.168.1.31,prod-web02.corp.local,web_server,high,Web Team,IT,DMZ-Secondary
+192.168.1.100,prod-fw01.corp.local,firewall,critical,Network Team,IT,DataCenter-Primary
+192.168.1.101,prod-fw02.corp.local,firewall,critical,Network Team,IT,DataCenter-Secondary
+10.0.10.100,ciso-workstation,workstation,high,CISO,Executive,Executive-Floor
