@@ -1,0 +1,403 @@
+{
+  "template_info": {
+    "name": "streams_monitoring", 
+    "title": "Splunk Streams Monitoring Dashboard",
+    "description": "Monitor Splunk Streams performance, capture rates, and network traffic analysis",
+    "category": "monitoring",
+    "version": "1.0.0"
+  },
+  "parameters": {
+    "dashboard_title": {
+      "type": "string",
+      "description": "Dashboard title", 
+      "default": "{{ENV_NAME}} - Streams Monitoring",
+      "required": true
+    },
+    "dashboard_description": {
+      "type": "string",
+      "description": "Dashboard description",
+      "default": "Monitor Splunk Streams capture performance and network analysis",
+      "required": false
+    },
+    "streams_index": {
+      "type": "string", 
+      "description": "Primary Streams index",
+      "default": "streams",
+      "required": true
+    },
+    "network_indexes": {
+      "type": "array",
+      "description": "Additional network-related indexes",
+      "default": ["network", "firewall", "ids"],
+      "required": false
+    },
+    "time_range_earliest": {
+      "type": "string",
+      "description": "Default earliest time", 
+      "default": "-4h@h",
+      "required": true
+    },
+    "time_range_latest": {
+      "type": "string",
+      "description": "Default latest time",
+      "default": "now", 
+      "required": true
+    },
+    "capture_interfaces": {
+      "type": "array",
+      "description": "Network interfaces being monitored",
+      "default": ["eth0", "eth1", "bond0"],
+      "required": false
+    },
+    "expected_throughput_mbps": {
+      "type": "number",
+      "description": "Expected network throughput in Mbps",
+      "default": 1000,
+      "required": true
+    },
+    "packet_loss_threshold": {
+      "type": "number", 
+      "description": "Packet loss threshold percentage",
+      "default": 1.0,
+      "required": true
+    },
+    "streams_sourcetypes": {
+      "type": "array",
+      "description": "Streams-related sourcetypes to monitor",
+      "default": ["stream:tcp", "stream:udp", "stream:icmp", "stream:dns", "stream:http"],
+      "required": true
+    }
+  },
+  "dashboard": {
+    "version": "1.1", 
+    "hideTitle": false,
+    "title": "{{dashboard_title}}",
+    "description": "{{dashboard_description}}",
+    "definition": {
+      "type": "absolute_time.earliest_time", 
+      "value": "{{time_range_earliest}}"
+    },
+    "inputs": [
+      {
+        "type": "time",
+        "token": "time_picker",
+        "title": "Time Range",
+        "defaultValue": {
+          "earliest_time": "{{time_range_earliest}}",
+          "latest_time": "{{time_range_latest}}"
+        }
+      },
+      {
+        "type": "dropdown",
+        "token": "interface_filter",
+        "title": "Network Interface", 
+        "selectFirstChoice": true,
+        "choices": [
+          {
+            "label": "All Interfaces",
+            "value": "*"
+          }
+          {{#each capture_interfaces}},
+          {
+            "label": "{{this}}",
+            "value": "{{this}}"
+          }
+          {{/each}}
+        ],
+        "defaultValue": "*"
+      },
+      {
+        "type": "dropdown",
+        "token": "sourcetype_filter",
+        "title": "Protocol Filter",
+        "selectFirstChoice": true,
+        "choices": [
+          {
+            "label": "All Protocols", 
+            "value": "*"
+          }
+          {{#each streams_sourcetypes}},
+          {
+            "label": "{{this|replace 'stream:' ''|title}}",
+            "value": "{{this}}"
+          }
+          {{/each}}
+        ],
+        "defaultValue": "*"
+      }
+    ],
+    "layout": {
+      "type": "absolute",
+      "options": {},
+      "structure": [
+        {
+          "item": "viz_capture_rate",
+          "type": "block", 
+          "position": {
+            "x": 0,
+            "y": 0,
+            "w": 200,
+            "h": 100
+          }
+        },
+        {
+          "item": "viz_packet_loss",
+          "type": "block",
+          "position": {
+            "x": 200,
+            "y": 0,
+            "w": 200,
+            "h": 100
+          }
+        },
+        {
+          "item": "viz_throughput",
+          "type": "block",
+          "position": {
+            "x": 400,
+            "y": 0,
+            "w": 200,
+            "h": 100
+          }
+        },
+        {
+          "item": "viz_active_streams", 
+          "type": "block",
+          "position": {
+            "x": 600,
+            "y": 0,
+            "w": 200,
+            "h": 100
+          }
+        },
+        {
+          "item": "viz_interface_performance",
+          "type": "block",
+          "position": {
+            "x": 0,
+            "y": 100,
+            "w": 800,
+            "h": 300
+          }
+        },
+        {
+          "item": "viz_protocol_breakdown",
+          "type": "block",
+          "position": {
+            "x": 0,
+            "y": 400,
+            "w": 400,
+            "h": 300
+          }
+        },
+        {
+          "item": "viz_top_conversations",
+          "type": "block",
+          "position": {
+            "x": 400,
+            "y": 400,
+            "w": 400,
+            "h": 300
+          }
+        },
+        {
+          "item": "viz_streams_health",
+          "type": "block",
+          "position": {
+            "x": 0,
+            "y": 700,
+            "w": 800,
+            "h": 200
+          }
+        }
+      ]
+    },
+    "dataSources": {
+      "ds_capture_metrics": {
+        "type": "ds.search",
+        "options": {
+          "query": "index={{streams_index}} sourcetype IN ({{#each streams_sourcetypes}}\"{{this}}\"{{#unless @last}},{{/unless}}{{/each}}) | stats count as packets, dc(src_ip) as unique_sources, dc(dest_ip) as unique_destinations, sum(bytes) as total_bytes by interface | eval throughput_mbps=round(total_bytes*8/1024/1024/300,2), capture_rate=round(packets/300,2) | where interface=\"$interface_filter$\" OR \"$interface_filter$\"=\"*\"",
+          "queryParameters": {
+            "earliest": "$time_picker.earliest$",
+            "latest": "$time_picker.latest$"
+          }
+        }
+      },
+      "ds_packet_loss": {
+        "type": "ds.search", 
+        "options": {
+          "query": "index={{streams_index}} sourcetype=stream:* | stats count as captured by interface | append [search index=_internal source=*splunkd.log component=StreamsProcessor | rex field=_raw \"dropped=(?<dropped>\\d+)\" | rex field=_raw \"interface=(?<interface>\\w+)\" | stats sum(dropped) as dropped by interface | eval captured=0] | stats sum(captured) as total_captured, sum(dropped) as total_dropped by interface | eval loss_rate=round(total_dropped/(total_captured+total_dropped)*100,2) | where interface=\"$interface_filter$\" OR \"$interface_filter$\"=\"*\"",
+          "queryParameters": {
+            "earliest": "$time_picker.earliest$", 
+            "latest": "$time_picker.latest$"
+          }
+        }
+      },
+      "ds_interface_performance": {
+        "type": "ds.search",
+        "options": {
+          "query": "index={{streams_index}} sourcetype IN ({{#each streams_sourcetypes}}\"{{this}}\"{{#unless @last}},{{/unless}}{{/each}}) | bucket _time span=5m | stats count as packets, sum(bytes) as bytes, dc(src_ip) as sources by _time, interface | eval throughput_mbps=round(bytes*8/1024/1024/300,2) | where interface=\"$interface_filter$\" OR \"$interface_filter$\"=\"*\"",
+          "queryParameters": {
+            "earliest": "$time_picker.earliest$",
+            "latest": "$time_picker.latest$"
+          }
+        }
+      },
+      "ds_protocol_breakdown": {
+        "type": "ds.search",
+        "options": {
+          "query": "index={{streams_index}} sourcetype IN ({{#each streams_sourcetypes}}\"{{this}}\"{{#unless @last}},{{/unless}}{{/each}}) | eval protocol=case(match(sourcetype,\"tcp\"),\"TCP\",match(sourcetype,\"udp\"),\"UDP\",match(sourcetype,\"icmp\"),\"ICMP\",match(sourcetype,\"dns\"),\"DNS\",match(sourcetype,\"http\"),\"HTTP\",1=1,\"Other\") | where sourcetype=\"$sourcetype_filter$\" OR \"$sourcetype_filter$\"=\"*\" | stats count as packets, sum(bytes) as bytes by protocol | eval percentage=round(count/sum(count)*100,1)",
+          "queryParameters": {
+            "earliest": "$time_picker.earliest$",
+            "latest": "$time_picker.latest$"
+          }
+        }
+      },
+      "ds_top_conversations": {
+        "type": "ds.search",
+        "options": {
+          "query": "index={{streams_index}} sourcetype IN ({{#each streams_sourcetypes}}\"{{this}}\"{{#unless @last}},{{/unless}}{{/each}}) | where sourcetype=\"$sourcetype_filter$\" OR \"$sourcetype_filter$\"=\"*\" | stats count as sessions, sum(bytes) as total_bytes by src_ip, dest_ip | eval conversation=src_ip.\" -> \".dest_ip, mb_transferred=round(total_bytes/1024/1024,2) | sort -total_bytes | head 20", 
+          "queryParameters": {
+            "earliest": "$time_picker.earliest$",
+            "latest": "$time_picker.latest$"
+          }
+        }
+      },
+      "ds_streams_health": {
+        "type": "ds.search",
+        "options": {
+          "query": "| multisearch [search index={{streams_index}} | stats count as events_captured] [search index=_internal source=*splunkd.log component=StreamsProcessor | stats count as processor_events] [search index=_internal source=*splunkd.log StreamsProcessor ERROR | stats count as errors] | stats sum(events_captured) as total_captured, sum(processor_events) as processor_logs, sum(errors) as error_count | eval health_score=case(error_count=0 AND total_captured>1000,\"Healthy\",error_count<10,\"Warning\",1=1,\"Critical\")",
+          "queryParameters": {
+            "earliest": "$time_picker.earliest$",
+            "latest": "$time_picker.latest$"
+          }
+        }
+      }
+    },
+    "visualizations": {
+      "viz_capture_rate": {
+        "type": "splunk.singlevalue",
+        "title": "Capture Rate", 
+        "dataSources": {
+          "primary": "ds_capture_metrics"
+        },
+        "options": {
+          "majorValue": "> primary | seriesByName('capture_rate')",
+          "numberPrecision": 1,
+          "unit": "pps"
+        }
+      },
+      "viz_packet_loss": {
+        "type": "splunk.singlevalue",
+        "title": "Packet Loss",
+        "dataSources": {
+          "primary": "ds_packet_loss"
+        },
+        "options": {
+          "majorValue": "> primary | seriesByName('loss_rate')",
+          "numberPrecision": 2,
+          "unit": "%"
+        }
+      },
+      "viz_throughput": {
+        "type": "splunk.singlevalue", 
+        "title": "Throughput",
+        "dataSources": {
+          "primary": "ds_capture_metrics"
+        },
+        "options": {
+          "majorValue": "> primary | seriesByName('throughput_mbps')",
+          "numberPrecision": 1,
+          "unit": "Mbps"
+        }
+      },
+      "viz_active_streams": {
+        "type": "splunk.singlevalue",
+        "title": "Active Streams", 
+        "dataSources": {
+          "primary": "ds_capture_metrics"
+        },
+        "options": {
+          "majorValue": "> primary | seriesByName('packets')",
+          "numberPrecision": 0
+        }
+      },
+      "viz_interface_performance": {
+        "type": "splunk.line",
+        "title": "Interface Performance Over Time",
+        "dataSources": {
+          "primary": "ds_interface_performance"
+        },
+        "options": {
+          "xAxisTitleText": "Time",
+          "yAxisTitleText": "Throughput (Mbps)",
+          "legend": {
+            "placement": "bottom"
+          }
+        }
+      },
+      "viz_protocol_breakdown": {
+        "type": "splunk.pie",
+        "title": "Protocol Distribution", 
+        "dataSources": {
+          "primary": "ds_protocol_breakdown"
+        },
+        "options": {
+          "labelField": "protocol",
+          "valueField": "packets"
+        }
+      },
+      "viz_top_conversations": {
+        "type": "splunk.table",
+        "title": "Top Network Conversations",
+        "dataSources": {
+          "primary": "ds_top_conversations"
+        },
+        "options": {
+          "tableFormat": {
+            "rowColors": [
+              {
+                "columnIndex": 4,
+                "value": "> 100",
+                "color": "#D93F3C"
+              },
+              {
+                "columnIndex": 4,
+                "value": "> 50", 
+                "color": "#F7BC38"
+              }
+            ]
+          }
+        }
+      },
+      "viz_streams_health": {
+        "type": "splunk.table",
+        "title": "Streams Health Status",
+        "dataSources": {
+          "primary": "ds_streams_health"
+        },
+        "options": {
+          "tableFormat": {
+            "rowColors": [
+              {
+                "columnIndex": 3,
+                "value": "Healthy",
+                "color": "#5CB3CC"
+              },
+              {
+                "columnIndex": 3,
+                "value": "Warning",
+                "color": "#F7BC38" 
+              },
+              {
+                "columnIndex": 3,
+                "value": "Critical",
+                "color": "#D93F3C"
+              }
+            ]
+          }
+        }
+      }
+    }
+  }
+}

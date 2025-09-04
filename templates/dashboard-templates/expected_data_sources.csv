@@ -1,0 +1,11 @@
+source,sourcetype,index,category,expected_frequency,business_hours_only,description
+/var/log/secure,linux_secure,security,authentication,continuous,false,Linux authentication logs
+/var/log/audit/audit.log,linux_audit,security,audit,continuous,false,Linux audit trail
+windows_event_log,WinEventLog:Security,security,authentication,continuous,false,Windows security events
+firewall_logs,cisco:asa,firewall,network,continuous,false,Cisco ASA firewall logs
+ids_alerts,snort,ids,intrusion,continuous,false,Snort IDS alerts
+proxy_logs,squid,proxy,web,continuous,true,Squid proxy access logs
+av_logs,symantec:ep,endpoint,malware,continuous,false,Symantec Endpoint Protection
+dhcp_logs,isc_dhcp,network,network,continuous,false,ISC DHCP server logs
+dns_logs,bind,network,dns,continuous,false,BIND DNS server logs
+email_logs,ms:exchange,email,email,continuous,true,Microsoft Exchange logs

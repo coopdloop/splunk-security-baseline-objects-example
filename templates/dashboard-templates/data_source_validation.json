@@ -1,0 +1,329 @@
+{
+  "template_info": {
+    "name": "data_source_validation",
+    "title": "Data Source Validation Dashboard",
+    "description": "Validates data sources, monitors ingestion rates, and identifies missing data",
+    "category": "validation",
+    "version": "1.0.0"
+  },
+  "parameters": {
+    "dashboard_title": {
+      "type": "string",
+      "description": "Dashboard title",
+      "default": "{{ENV_NAME}} - Data Source Validation",
+      "required": true
+    },
+    "dashboard_description": {
+      "type": "string", 
+      "description": "Dashboard description",
+      "default": "Monitor data ingestion and validate source availability",
+      "required": false
+    },
+    "primary_index": {
+      "type": "string",
+      "description": "Primary security index to monitor",
+      "default": "security",
+      "required": true
+    },
+    "secondary_indexes": {
+      "type": "array",
+      "description": "Additional indexes to monitor",
+      "default": ["firewall", "ids", "proxy", "endpoint"],
+      "required": false
+    },
+    "time_range_earliest": {
+      "type": "string",
+      "description": "Default earliest time",
+      "default": "-24h@h",
+      "required": true
+    },
+    "time_range_latest": {
+      "type": "string", 
+      "description": "Default latest time",
+      "default": "now",
+      "required": true
+    },
+    "expected_sources_lookup": {
+      "type": "string",
+      "description": "Lookup table containing expected data sources",
+      "default": "expected_data_sources.csv",
+      "required": true
+    },
+    "ingestion_threshold_gb": {
+      "type": "number",
+      "description": "Minimum expected daily ingestion in GB",
+      "default": 1.0,
+      "required": true
+    },
+    "missing_data_threshold_minutes": {
+      "type": "number",
+      "description": "Alert if no data received in X minutes",
+      "default": 60,
+      "required": true
+    }
+  },
+  "dashboard": {
+    "version": "1.1",
+    "hideTitle": false,
+    "title": "{{dashboard_title}}",
+    "description": "{{dashboard_description}}",
+    "definition": {
+      "type": "absolute_time.earliest_time",
+      "value": "{{time_range_earliest}}"
+    },
+    "inputs": [
+      {
+        "type": "time",
+        "token": "time_picker",
+        "title": "Time Range",
+        "defaultValue": {
+          "earliest_time": "{{time_range_earliest}}",
+          "latest_time": "{{time_range_latest}}"
+        }
+      },
+      {
+        "type": "dropdown",
+        "token": "index_filter", 
+        "title": "Index Filter",
+        "selectFirstChoice": true,
+        "choices": [
+          {
+            "label": "All Monitored Indexes",
+            "value": "*"
+          },
+          {
+            "label": "{{primary_index|title}}",
+            "value": "{{primary_index}}"
+          }
+          {{#each secondary_indexes}},
+          {
+            "label": "{{this|title}}",
+            "value": "{{this}}"
+          }
+          {{/each}}
+        ],
+        "defaultValue": "{{primary_index}}"
+      }
+    ],
+    "layout": {
+      "type": "absolute",
+      "options": {},
+      "structure": [
+        {
+          "item": "viz_ingestion_summary",
+          "type": "block",
+          "position": {
+            "x": 0,
+            "y": 0,
+            "w": 300,
+            "h": 100
+          }
+        },
+        {
+          "item": "viz_missing_sources", 
+          "type": "block",
+          "position": {
+            "x": 300,
+            "y": 0,
+            "w": 300,
+            "h": 100
+          }
+        },
+        {
+          "item": "viz_data_freshness",
+          "type": "block", 
+          "position": {
+            "x": 600,
+            "y": 0,
+            "w": 300,
+            "h": 100
+          }
+        },
+        {
+          "item": "viz_ingestion_timeline",
+          "type": "block",
+          "position": {
+            "x": 0,
+            "y": 100,
+            "w": 1200,
+            "h": 300
+          }
+        },
+        {
+          "item": "viz_source_inventory",
+          "type": "block",
+          "position": {
+            "x": 0,
+            "y": 400,
+            "w": 600,
+            "h": 300
+          }
+        },
+        {
+          "item": "viz_ingestion_rates",
+          "type": "block",
+          "position": {
+            "x": 600,
+            "y": 400, 
+            "w": 600,
+            "h": 300
+          }
+        }
+      ]
+    },
+    "dataSources": {
+      "ds_ingestion_summary": {
+        "type": "ds.search",
+        "options": {
+          "query": "index={{primary_index}} OR index IN ({{#each secondary_indexes}}\"{{this}}\"{{#unless @last}},{{/unless}}{{/each}}) | stats count as total_events, dc(source) as unique_sources, round(sum(eval(len(_raw)))/1024/1024/1024,2) as total_gb by index | eval health_status=case(total_gb>{{ingestion_threshold_gb}},\"Healthy\",total_gb>{{ingestion_threshold_gb}}/2,\"Warning\",1=1,\"Critical\")",
+          "queryParameters": {
+            "earliest": "$time_picker.earliest$",
+            "latest": "$time_picker.latest$"
+          }
+        }
+      },
+      "ds_missing_sources": {
+        "type": "ds.search",
+        "options": {
+          "query": "| inputlookup {{expected_sources_lookup}} | eval expected=1 | append [search index={{primary_index}} OR index IN ({{#each secondary_indexes}}\"{{this}}\"{{#unless @last}},{{/unless}}{{/each}}) | stats latest(_time) as last_seen by source | eval actual=1] | stats values(expected) as exp, values(actual) as act, max(last_seen) as latest_data by source | where isnull(act) OR (now()-latest_data)>{{missing_data_threshold_minutes}}*60",
+          "queryParameters": {
+            "earliest": "$time_picker.earliest$", 
+            "latest": "$time_picker.latest$"
+          }
+        }
+      },
+      "ds_data_freshness": {
+        "type": "ds.search",
+        "options": {
+          "query": "index={{primary_index}} OR index IN ({{#each secondary_indexes}}\"{{this}}\"{{#unless @last}},{{/unless}}{{/each}}) | stats latest(_time) as latest_event | eval freshness_minutes=round((now()-latest_event)/60,0), freshness_status=case(freshness_minutes<30,\"Fresh\",freshness_minutes<{{missing_data_threshold_minutes}},\"Stale\",1=1,\"Critical\") | table freshness_minutes, freshness_status",
+          "queryParameters": {
+            "earliest": "$time_picker.earliest$",
+            "latest": "$time_picker.latest$"
+          }
+        }
+      },
+      "ds_ingestion_timeline": {
+        "type": "ds.search", 
+        "options": {
+          "query": "index={{primary_index}} OR index IN ({{#each secondary_indexes}}\"{{this}}\"{{#unless @last}},{{/unless}}{{/each}}) | bucket _time span=1h | stats count as events, round(sum(eval(len(_raw)))/1024/1024,2) as mb_ingested by _time, index",
+          "queryParameters": {
+            "earliest": "$time_picker.earliest$",
+            "latest": "$time_picker.latest$"
+          }
+        }
+      },
+      "ds_source_inventory": {
+        "type": "ds.search",
+        "options": {
+          "query": "index={{primary_index}} OR index IN ({{#each secondary_indexes}}\"{{this}}\"{{#unless @last}},{{/unless}}{{/each}}) | stats count as event_count, latest(_time) as last_seen, earliest(_time) as first_seen by source, sourcetype, host | eval last_seen_readable=strftime(last_seen,\"%Y-%m-%d %H:%M:%S\"), age_hours=round((now()-last_seen)/3600,1), status=case(age_hours<1,\"Active\",age_hours<24,\"Recent\",1=1,\"Stale\") | sort -event_count",
+          "queryParameters": {
+            "earliest": "$time_picker.earliest$",
+            "latest": "$time_picker.latest$"
+          }
+        }
+      },
+      "ds_ingestion_rates": {
+        "type": "ds.search",
+        "options": {
+          "query": "index={{primary_index}} OR index IN ({{#each secondary_indexes}}\"{{this}}\"{{#unless @last}},{{/unless}}{{/each}}) | bucket _time span=1h | stats count as eps by _time | eventstats avg(eps) as avg_eps, stdev(eps) as stdev_eps | eval rate_status=case(eps>(avg_eps+(2*stdev_eps)),\"High\",eps<(avg_eps-(2*stdev_eps)),\"Low\",1=1,\"Normal\")",
+          "queryParameters": {
+            "earliest": "$time_picker.earliest$",
+            "latest": "$time_picker.latest$"
+          }
+        }
+      }
+    },
+    "visualizations": {
+      "viz_ingestion_summary": {
+        "type": "splunk.singlevalue",
+        "title": "Ingestion Summary",
+        "dataSources": {
+          "primary": "ds_ingestion_summary"
+        },
+        "options": {
+          "majorValue": "> sparklineValues | lastPoint()",
+          "trendValue": "> sparklineValues | delta(-2)",
+          "sparklineValues": "> primary | seriesByName('total_gb')",
+          "numberPrecision": 1,
+          "unit": "GB"
+        }
+      },
+      "viz_missing_sources": {
+        "type": "splunk.singlevalue", 
+        "title": "Missing/Stale Sources",
+        "dataSources": {
+          "primary": "ds_missing_sources"
+        },
+        "options": {
+          "majorValue": "> primary | stats count()",
+          "numberPrecision": 0
+        }
+      },
+      "viz_data_freshness": {
+        "type": "splunk.singlevalue",
+        "title": "Data Freshness",
+        "dataSources": {
+          "primary": "ds_data_freshness"
+        },
+        "options": {
+          "majorValue": "> primary | seriesByName('freshness_minutes')",
+          "numberPrecision": 0,
+          "unit": "min ago"
+        }
+      },
+      "viz_ingestion_timeline": {
+        "type": "splunk.line",
+        "title": "Ingestion Timeline",
+        "dataSources": {
+          "primary": "ds_ingestion_timeline"
+        },
+        "options": {
+          "xAxisTitleText": "Time",
+          "yAxisTitleText": "Events Per Hour",
+          "legend": {
+            "placement": "bottom"
+          }
+        }
+      },
+      "viz_source_inventory": {
+        "type": "splunk.table",
+        "title": "Data Source Inventory", 
+        "dataSources": {
+          "primary": "ds_source_inventory"
+        },
+        "options": {
+          "tableFormat": {
+            "rowColors": [
+              {
+                "columnIndex": 7,
+                "value": "Active",
+                "color": "#5CB3CC"
+              },
+              {
+                "columnIndex": 7,
+                "value": "Recent", 
+                "color": "#F7BC38"
+              },
+              {
+                "columnIndex": 7,
+                "value": "Stale",
+                "color": "#D93F3C"
+              }
+            ]
+          }
+        }
+      },
+      "viz_ingestion_rates": {
+        "type": "splunk.column",
+        "title": "Ingestion Rate Analysis",
+        "dataSources": {
+          "primary": "ds_ingestion_rates"
+        },
+        "options": {
+          "xAxisTitleText": "Time",
+          "yAxisTitleText": "Events Per Second"
+        }
+      }
+    }
+  }
+}

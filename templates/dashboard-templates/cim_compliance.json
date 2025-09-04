@@ -1,0 +1,438 @@
+{
+  "template_info": {
+    "name": "cim_compliance",
+    "title": "CIM Compliance Validation Dashboard", 
+    "description": "Validate Common Information Model compliance across data sources and data models",
+    "category": "compliance",
+    "version": "1.0.0"
+  },
+  "parameters": {
+    "dashboard_title": {
+      "type": "string",
+      "description": "Dashboard title",
+      "default": "{{ENV_NAME}} - CIM Compliance Dashboard",
+      "required": true
+    },
+    "dashboard_description": {
+      "type": "string",
+      "description": "Dashboard description", 
+      "default": "Monitor CIM field population and data model compliance",
+      "required": false
+    },
+    "primary_indexes": {
+      "type": "array",
+      "description": "Indexes to validate for CIM compliance",
+      "default": ["security", "firewall", "ids", "proxy", "endpoint"],
+      "required": true
+    },
+    "time_range_earliest": {
+      "type": "string",
+      "description": "Default earliest time",
+      "default": "-24h@h", 
+      "required": true
+    },
+    "time_range_latest": {
+      "type": "string",
+      "description": "Default latest time",
+      "default": "now",
+      "required": true
+    },
+    "data_models_to_validate": {
+      "type": "array",
+      "description": "CIM data models to validate",
+      "default": ["Authentication", "Network_Traffic", "Malware", "Web", "Email", "Vulnerabilities"],
+      "required": true
+    },
+    "required_cim_fields": {
+      "type": "object",
+      "description": "Required CIM fields by data model",
+      "default": {
+        "Authentication": ["user", "src", "dest", "action", "app"],
+        "Network_Traffic": ["src_ip", "dest_ip", "src_port", "dest_port", "protocol", "action"],
+        "Malware": ["signature", "file_name", "file_hash", "dest", "vendor_product"],
+        "Web": ["url", "uri_path", "http_method", "status", "src_ip"],
+        "Email": ["recipient", "sender", "subject", "action"],
+        "Vulnerabilities": ["dest", "severity", "cve", "category"]
+      },
+      "required": true
+    },
+    "compliance_threshold": {
+      "type": "number",
+      "description": "Minimum compliance percentage threshold",
+      "default": 85.0,
+      "required": true
+    },
+    "field_population_threshold": {
+      "type": "number",
+      "description": "Minimum field population percentage", 
+      "default": 75.0,
+      "required": true
+    }
+  },
+  "dashboard": {
+    "version": "1.1",
+    "hideTitle": false,
+    "title": "{{dashboard_title}}",
+    "description": "{{dashboard_description}}",
+    "definition": {
+      "type": "absolute_time.earliest_time",
+      "value": "{{time_range_earliest}}"
+    },
+    "inputs": [
+      {
+        "type": "time",
+        "token": "time_picker",
+        "title": "Time Range", 
+        "defaultValue": {
+          "earliest_time": "{{time_range_earliest}}",
+          "latest_time": "{{time_range_latest}}"
+        }
+      },
+      {
+        "type": "dropdown",
+        "token": "datamodel_filter",
+        "title": "Data Model",
+        "selectFirstChoice": true,
+        "choices": [
+          {
+            "label": "All Data Models",
+            "value": "*"
+          }
+          {{#each data_models_to_validate}},
+          {
+            "label": "{{this}}",
+            "value": "{{this}}"
+          }
+          {{/each}}
+        ],
+        "defaultValue": "*"
+      },
+      {
+        "type": "dropdown", 
+        "token": "index_filter",
+        "title": "Index Filter",
+        "selectFirstChoice": true,
+        "choices": [
+          {
+            "label": "All Indexes",
+            "value": "*"
+          }
+          {{#each primary_indexes}},
+          {
+            "label": "{{this|title}}",
+            "value": "{{this}}"
+          }
+          {{/each}}
+        ],
+        "defaultValue": "*"
+      }
+    ],
+    "layout": {
+      "type": "absolute",
+      "options": {},
+      "structure": [
+        {
+          "item": "viz_overall_compliance",
+          "type": "block",
+          "position": {
+            "x": 0,
+            "y": 0,
+            "w": 200,
+            "h": 100
+          }
+        },
+        {
+          "item": "viz_datamodel_health",
+          "type": "block", 
+          "position": {
+            "x": 200,
+            "y": 0,
+            "w": 200,
+            "h": 100
+          }
+        },
+        {
+          "item": "viz_field_coverage",
+          "type": "block",
+          "position": {
+            "x": 400,
+            "y": 0,
+            "w": 200,
+            "h": 100
+          }
+        },
+        {
+          "item": "viz_tag_compliance",
+          "type": "block",
+          "position": {
+            "x": 600,
+            "y": 0,
+            "w": 200,
+            "h": 100
+          }
+        },
+        {
+          "item": "viz_compliance_matrix",
+          "type": "block",
+          "position": {
+            "x": 0,
+            "y": 100, 
+            "w": 800,
+            "h": 300
+          }
+        },
+        {
+          "item": "viz_field_population",
+          "type": "block",
+          "position": {
+            "x": 0,
+            "y": 400,
+            "w": 400,
+            "h": 300
+          }
+        },
+        {
+          "item": "viz_sourcetype_compliance",
+          "type": "block",
+          "position": {
+            "x": 400,
+            "y": 400,
+            "w": 400,
+            "h": 300
+          }
+        },
+        {
+          "item": "viz_acceleration_status",
+          "type": "block",
+          "position": {
+            "x": 0,
+            "y": 700,
+            "w": 800,
+            "h": 200
+          }
+        }
+      ]
+    },
+    "dataSources": {
+      "ds_overall_compliance": {
+        "type": "ds.search",
+        "options": {
+          "query": "| rest /services/data/models | search title IN ({{#each data_models_to_validate}}\"{{this}}\"{{#unless @last}},{{/unless}}{{/each}}) | eval compliance_score=if(match(eai:digest,\"accelerated\"),100,if(match(description,\"CIM\"),75,50)) | stats avg(compliance_score) as overall_compliance | eval status=case(overall_compliance>={{compliance_threshold}},\"Compliant\",overall_compliance>=70,\"Needs Improvement\",1=1,\"Non-Compliant\")",
+          "queryParameters": {
+            "earliest": "$time_picker.earliest$",
+            "latest": "$time_picker.latest$"
+          }
+        }
+      },
+      "ds_datamodel_health": {
+        "type": "ds.search",
+        "options": {
+          "query": "| rest /services/data/models | search title IN ({{#each data_models_to_validate}}\"{{this}}\"{{#unless @last}},{{/unless}}{{/each}}) | where title=\"$datamodel_filter$\" OR \"$datamodel_filter$\"=\"*\" | eval acceleration_status=if(match(eai:digest,\"accelerated\"),\"Enabled\",\"Disabled\"), health=case(match(eai:digest,\"accelerated\") AND acceleration.earliest_time<relative_time(now(),\"-30d@d\"),\"Healthy\",match(eai:digest,\"accelerated\"),\"Warning\",1=1,\"Critical\") | stats count by health",
+          "queryParameters": {
+            "earliest": "$time_picker.earliest$", 
+            "latest": "$time_picker.latest$"
+          }
+        }
+      },
+      "ds_field_coverage": {
+        "type": "ds.search",
+        "options": {
+          "query": "{{#each data_models_to_validate}}| datamodel {{this}} search | eval datamodel=\"{{this}}\"{{#if @last}} | append [ {{else}} | append [{{/if}}{{/each}} ] | where datamodel=\"$datamodel_filter$\" OR \"$datamodel_filter$\"=\"*\" | eval required_fields=case({{#each required_cim_fields}}datamodel=\"{{@key}}\",\"{{#each this}}{{this}}{{#unless @last}},{{/unless}}{{/each}}\"{{#unless @last}},{{/unless}}{{/each}}) | eval field_count=0 {{#each required_cim_fields}}| eval field_count=if(datamodel=\"{{@key}}\",field_count+{{#each this}}if(isnotnull({{this}}),1,0){{#unless @last}}+{{/unless}}{{/each}},field_count){{/each}} | eval total_required={{#each required_cim_fields}}if(datamodel=\"{{@key}}\",{{this.length}},0){{#unless @last}}+{{/unless}}{{/each}} | eval field_coverage=round(field_count/total_required*100,1) | stats avg(field_coverage) as avg_coverage by datamodel",
+          "queryParameters": {
+            "earliest": "$time_picker.earliest$",
+            "latest": "$time_picker.latest$"
+          }
+        }
+      },
+      "ds_tag_compliance": {
+        "type": "ds.search",
+        "options": {
+          "query": "index IN ({{#each primary_indexes}}\"{{this}}\"{{#unless @last}},{{/unless}}{{/each}}) | where index=\"$index_filter$\" OR \"$index_filter$\"=\"*\" | eval has_cim_tags=if(match(tag,\"authentication|network|malware|web|email|vulnerability\"),1,0) | stats sum(has_cim_tags) as tagged_events, count as total_events | eval tag_compliance=round(tagged_events/total_events*100,1)",
+          "queryParameters": {
+            "earliest": "$time_picker.earliest$",
+            "latest": "$time_picker.latest$"
+          }
+        }
+      },
+      "ds_compliance_matrix": {
+        "type": "ds.search",
+        "options": {
+          "query": "{{#each data_models_to_validate}}| datamodel {{this}} search | eval datamodel=\"{{this}}\"{{#if @last}} | append [ {{else}} | append [{{/if}}{{/each}} ] | where datamodel=\"$datamodel_filter$\" OR \"$datamodel_filter$\"=\"*\" | eval vendor_product=if(isnull(vendor_product),\"Unknown\",vendor_product) | stats count as events, {{#each required_cim_fields}}dc({{#each this}}{{this}}{{#unless @last}})+dc({{/unless}}{{/each}}) as \"{{@key}}_fields\"{{#unless @last}},{{/unless}}{{/each}} by datamodel, sourcetype, vendor_product | foreach *_fields [eval compliance_<<MATCHSTR>>=round(<<FIELD>>/{{this.length}}*100,1)] | eval overall_compliance=round(({{#each required_cim_fields}}compliance_{{@key}}{{#unless @last}}+{{/unless}}{{/each}})/{{data_models_to_validate.length}},1)",
+          "queryParameters": {
+            "earliest": "$time_picker.earliest$",
+            "latest": "$time_picker.latest$"
+          }
+        }
+      },
+      "ds_field_population": {
+        "type": "ds.search", 
+        "options": {
+          "query": "{{#each data_models_to_validate}}| datamodel {{this}} search | eval datamodel=\"{{this}}\"{{#if @last}} | append [ {{else}} | append [{{/if}}{{/each}} ] | where datamodel=\"$datamodel_filter$\" OR \"$datamodel_filter$\"=\"*\" | stats count as total_events, {{#each required_cim_fields}}{{#each this}}sum(if(isnotnull({{this}}),1,0)) as \"{{this}}_populated\"{{#unless @last}},{{/unless}}{{/each}}{{#unless @last}},{{/unless}}{{/each}} by datamodel | foreach *_populated [eval <<MATCHSTR>>_percentage=round(<<FIELD>>/total_events*100,1)] | fields datamodel, *_percentage",
+          "queryParameters": {
+            "earliest": "$time_picker.earliest$",
+            "latest": "$time_picker.latest$"
+          }
+        }
+      },
+      "ds_sourcetype_compliance": {
+        "type": "ds.search",
+        "options": {
+          "query": "index IN ({{#each primary_indexes}}\"{{this}}\"{{#unless @last}},{{/unless}}{{/each}}) | where index=\"$index_filter$\" OR \"$index_filter$\"=\"*\" | eval cim_compliant=case({{#each required_cim_fields}}isnotnull({{#each this}}{{this}}){{#unless @last}} AND isnotnull({{/unless}}{{/each}}),\"{{@key}}\"{{#unless @last}},{{/unless}}{{/each}},\"Non-Compliant\") | stats count by sourcetype, cim_compliant | eval compliance_percentage=round(count/sum(count)*100,1) | where cim_compliant!=\"Non-Compliant\"",
+          "queryParameters": {
+            "earliest": "$time_picker.earliest$", 
+            "latest": "$time_picker.latest$"
+          }
+        }
+      },
+      "ds_acceleration_status": {
+        "type": "ds.search",
+        "options": {
+          "query": "| rest /services/data/models | search title IN ({{#each data_models_to_validate}}\"{{this}}\"{{#unless @last}},{{/unless}}{{/each}}) | where title=\"$datamodel_filter$\" OR \"$datamodel_filter$\"=\"*\" | eval acceleration_enabled=if(match(eai:digest,\"accelerated\"),\"Yes\",\"No\"), summary_size_mb=round(acceleration.summary_size/1024/1024,2), earliest_time=strftime(acceleration.earliest_time,\"%Y-%m-%d\") | table title, acceleration_enabled, summary_size_mb, earliest_time, acceleration.cron_schedule",
+          "queryParameters": {
+            "earliest": "$time_picker.earliest$",
+            "latest": "$time_picker.latest$"
+          }
+        }
+      }
+    },
+    "visualizations": {
+      "viz_overall_compliance": {
+        "type": "splunk.singlevalue",
+        "title": "Overall CIM Compliance",
+        "dataSources": {
+          "primary": "ds_overall_compliance"
+        },
+        "options": {
+          "majorValue": "> primary | seriesByName('overall_compliance')",
+          "numberPrecision": 1,
+          "unit": "%"
+        }
+      },
+      "viz_datamodel_health": {
+        "type": "splunk.pie",
+        "title": "Data Model Health",
+        "dataSources": {
+          "primary": "ds_datamodel_health"
+        },
+        "options": {
+          "labelField": "health",
+          "valueField": "count"
+        }
+      },
+      "viz_field_coverage": {
+        "type": "splunk.singlevalue",
+        "title": "Field Coverage",
+        "dataSources": {
+          "primary": "ds_field_coverage"
+        },
+        "options": {
+          "majorValue": "> primary | seriesByName('avg_coverage')",
+          "numberPrecision": 1,
+          "unit": "%"
+        }
+      },
+      "viz_tag_compliance": {
+        "type": "splunk.singlevalue",
+        "title": "Tag Compliance", 
+        "dataSources": {
+          "primary": "ds_tag_compliance"
+        },
+        "options": {
+          "majorValue": "> primary | seriesByName('tag_compliance')",
+          "numberPrecision": 1,
+          "unit": "%"
+        }
+      },
+      "viz_compliance_matrix": {
+        "type": "splunk.table",
+        "title": "CIM Compliance Matrix",
+        "dataSources": {
+          "primary": "ds_compliance_matrix"
+        },
+        "options": {
+          "tableFormat": {
+            "rowColors": [
+              {
+                "columnIndex": -1,
+                "value": "> {{compliance_threshold}}",
+                "color": "#5CB3CC"
+              },
+              {
+                "columnIndex": -1,
+                "value": "> 70",
+                "color": "#F7BC38"
+              },
+              {
+                "columnIndex": -1,
+                "value": "< 70",
+                "color": "#D93F3C"
+              }
+            ]
+          }
+        }
+      },
+      "viz_field_population": {
+        "type": "splunk.column",
+        "title": "CIM Field Population Rates",
+        "dataSources": {
+          "primary": "ds_field_population"
+        },
+        "options": {
+          "xAxisTitleText": "Data Model",
+          "yAxisTitleText": "Population Percentage (%)"
+        }
+      },
+      "viz_sourcetype_compliance": {
+        "type": "splunk.table",
+        "title": "Sourcetype CIM Compliance",
+        "dataSources": {
+          "primary": "ds_sourcetype_compliance"
+        },
+        "options": {
+          "tableFormat": {
+            "rowColors": [
+              {
+                "columnIndex": 2,
+                "value": "> {{compliance_threshold}}",
+                "color": "#5CB3CC"
+              },
+              {
+                "columnIndex": 2,
+                "value": "> 70",
+                "color": "#F7BC38"
+              },
+              {
+                "columnIndex": 2,
+                "value": "< 70", 
+                "color": "#D93F3C"
+              }
+            ]
+          }
+        }
+      },
+      "viz_acceleration_status": {
+        "type": "splunk.table",
+        "title": "Data Model Acceleration Status",
+        "dataSources": {
+          "primary": "ds_acceleration_status"
+        },
+        "options": {
+          "tableFormat": {
+            "rowColors": [
+              {
+                "columnIndex": 1,
+                "value": "Yes",
+                "color": "#5CB3CC"
+              },
+              {
+                "columnIndex": 1,
+                "value": "No",
+                "color": "#D93F3C"
+              }
+            ]
+          }
+        }
+      }
+    }
+  }
+}
