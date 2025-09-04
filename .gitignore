@@ -175,6 +175,11 @@ samples/*.json
 samples/*.csv
 test-data/
 
+# Dashboard generation test outputs
+test_output/
+*_output/
+generated_dashboards/
+
 # ============================================================================
 # Repository Management
 # ============================================================================

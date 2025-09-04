@@ -96,13 +96,11 @@
           {
             "label": "All Interfaces",
             "value": "*"
-          }
-          {{#each capture_interfaces}},
+          }{{#each capture_interfaces}},
           {
             "label": "{{this}}",
             "value": "{{this}}"
-          }
-          {{/each}}
+          }{{/each}}
         ],
         "defaultValue": "*"
       },
@@ -115,13 +113,11 @@
           {
             "label": "All Protocols", 
             "value": "*"
-          }
-          {{#each streams_sourcetypes}},
+          }{{#each streams_sourcetypes}},
           {
             "label": "{{this|replace 'stream:' ''|title}}",
             "value": "{{this}}"
-          }
-          {{/each}}
+          }{{/each}}
         ],
         "defaultValue": "*"
       }

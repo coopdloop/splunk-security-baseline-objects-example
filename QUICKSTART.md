@@ -33,6 +33,21 @@ source .venv/bin/activate  # Linux/macOS
 
 ## Using the Dashboard Generator
 
+### 🆕 NEW: Handlebars Templates
+
+```bash
+# List all templates (JSON and Handlebars)
+uv run create-dashboard list-templates
+
+# Generate with advanced Handlebars template
+uv run create-dashboard generate security_basic \
+  --environment production \
+  --config-file security_config.json
+
+# Validate with strict mode (performance & security checks)
+uv run create-dashboard validate-template security_basic --strict
+```
+
 ### Interactive Mode (Recommended for first time)
 
 ```bash
@@ -54,11 +69,16 @@ create-dashboard generate data_source_validation --environment production
 ### Command Line Mode
 
 ```bash
-# Generate with specific parameters using a config file
+# Traditional JSON template
 create-dashboard generate cim_compliance \\
   --environment staging \\
   --config-file my_config.json \\
   --output-dir custom/output/path
+
+# NEW: Advanced Handlebars template 
+create-dashboard generate security_basic \\
+  --environment production \\
+  --config-file security_config.json
 
 # Dry run to see what would be generated
 create-dashboard generate streams_monitoring \\
@@ -69,8 +89,11 @@ create-dashboard generate streams_monitoring \\
 ### Validate Templates
 
 ```bash
-# Validate a template structure
+# Basic validation
 create-dashboard validate-template data_source_validation
+
+# NEW: Strict validation (performance & security analysis)
+create-dashboard validate-template security_basic --strict
 ```
 
 ## Real Working Example

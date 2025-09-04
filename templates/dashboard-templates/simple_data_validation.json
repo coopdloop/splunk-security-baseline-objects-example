@@ -1,0 +1,108 @@
+{
+  "template_info": {
+    "name": "simple_data_validation",
+    "title": "Simple Data Validation Dashboard", 
+    "description": "Basic data source validation and monitoring",
+    "category": "validation",
+    "version": "1.0.0"
+  },
+  "parameters": {
+    "dashboard_title": {
+      "type": "string",
+      "description": "Dashboard title",
+      "default": "Data Validation Dashboard",
+      "required": true
+    },
+    "primary_index": {
+      "type": "string",
+      "description": "Primary index to monitor", 
+      "default": "security",
+      "required": true
+    },
+    "time_range_earliest": {
+      "type": "string",
+      "description": "Default earliest time",
+      "default": "-24h@h",
+      "required": true
+    }
+  },
+  "dashboard": {
+    "version": "1.1",
+    "hideTitle": false,
+    "title": "{{dashboard_title}}",
+    "description": "Monitor data ingestion and validate source availability",
+    "definition": {
+      "type": "absolute_time.earliest_time",
+      "value": "{{time_range_earliest}}"
+    },
+    "inputs": [
+      {
+        "type": "time",
+        "token": "time_picker",
+        "title": "Time Range",
+        "defaultValue": {
+          "earliest_time": "{{time_range_earliest}}",
+          "latest_time": "now"
+        }
+      }
+    ],
+    "layout": {
+      "type": "absolute",
+      "options": {},
+      "structure": [
+        {
+          "item": "viz_event_count",
+          "type": "block",
+          "position": {"x": 0, "y": 0, "w": 400, "h": 200}
+        },
+        {
+          "item": "viz_source_count", 
+          "type": "block",
+          "position": {"x": 400, "y": 0, "w": 400, "h": 200}
+        }
+      ]
+    },
+    "dataSources": {
+      "ds_events": {
+        "type": "ds.search",
+        "options": {
+          "query": "index={{primary_index}} | stats count as total_events",
+          "queryParameters": {
+            "earliest": "$time_picker.earliest$",
+            "latest": "$time_picker.latest$"
+          }
+        }
+      },
+      "ds_sources": {
+        "type": "ds.search", 
+        "options": {
+          "query": "index={{primary_index}} | stats dc(source) as unique_sources",
+          "queryParameters": {
+            "earliest": "$time_picker.earliest$",
+            "latest": "$time_picker.latest$"
+          }
+        }
+      }
+    },
+    "visualizations": {
+      "viz_event_count": {
+        "type": "splunk.singlevalue",
+        "title": "Total Events",
+        "dataSources": {"primary": "ds_events"},
+        "options": {
+          "majorValue": "> primary | seriesByName('total_events')",
+          "numberPrecision": 0
+        }
+      },
+      "viz_source_count": {
+        "type": "splunk.singlevalue",
+        "title": "Unique Sources", 
+        "dataSources": {"primary": "ds_sources"},
+        "options": {
+          "majorValue": "> primary | seriesByName('unique_sources')",
+          "numberPrecision": 0
+        }
+      }
+    }
+  }
+}

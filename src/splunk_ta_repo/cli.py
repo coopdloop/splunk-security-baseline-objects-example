@@ -11,6 +11,7 @@ from typing import Dict, Any, List
 
 from .dashboard_generator import DashboardGenerator
 from .exceptions import TemplateError, ValidationError
+from .template_validator import validate_template_structure, validate_template_syntax, validate_template_rendering
 
 console = Console()
 
@@ -40,7 +41,9 @@ def list_templates():
     
     for name, path in templates.items():
         try:
+            # Load template using the proper template loader
             template_data = generator.load_template(name)
+            
             info = template_data.get('template_info', {})
             table.add_row(
                 name,
@@ -48,6 +51,8 @@ def list_templates():
                 info.get('category', 'general'),
                 info.get('description', 'No description')[:50] + "..."
             )
+        except json.JSONDecodeError:
+            table.add_row(name, "[red]Invalid JSON[/red]", "error", "Template contains syntax errors")
         except Exception as e:
             table.add_row(name, "[red]Error loading[/red]", "error", str(e)[:50])
     
@@ -192,31 +197,29 @@ def collect_parameters_interactive(template_data: Dict[str, Any], environment: s
 
 @cli.command()
 @click.argument('template_name')
-def validate_template(template_name: str):
-    """Validate a dashboard template"""
+@click.option('--strict', is_flag=True, help='Enable strict validation mode with performance and security checks')
+def validate_template(template_name: str, strict: bool):
+    """Validate a dashboard template with optional strict mode"""
     try:
         generator = DashboardGenerator()
         template_data = generator.load_template(template_name)
         
         # Validate template structure
-        errors = []
-        warnings = []
+        struct_errors, struct_warnings = validate_template_structure(template_data)
         
-        # Check required sections
-        if 'template_info' not in template_data:
-            errors.append("Missing template_info section")
-        if 'parameters' not in template_data:
-            warnings.append("No parameters section found")
-        if 'dashboard' not in template_data:
-            errors.append("Missing dashboard section")
+        # Enhanced syntax validation with strict mode
+        if 'dashboard' in template_data:
+            dashboard_json = json.dumps(template_data['dashboard'], indent=2)
+            syntax_errors, syntax_warnings = validate_template_syntax(dashboard_json, strict=strict)
+        else:
+            syntax_errors, syntax_warnings = [], []
         
-        # Validate parameters
-        parameters = template_data.get('parameters', {})
-        for param_name, param_config in parameters.items():
-            if 'type' not in param_config:
-                warnings.append(f"Parameter {param_name} missing type")
-            if param_config.get('required', False) and 'default' not in param_config:
-                warnings.append(f"Required parameter {param_name} has no default")
+        # Validate template rendering with strict mode
+        render_errors, render_warnings = validate_template_rendering(template_data, strict=strict)
+        
+        # Combine all validation results
+        errors = struct_errors + syntax_errors + render_errors
+        warnings = struct_warnings + syntax_warnings + render_warnings
         
         # Show results
         if errors:

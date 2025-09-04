@@ -1,0 +1,180 @@
+{
+  "template_info": {
+    "name": "security_basic",
+    "title": "Basic Security Dashboard",
+    "description": "Simple security monitoring dashboard with event tracking",
+    "category": "security",
+    "version": "1.0.0",
+    "format": "handlebars"
+  },
+  "parameters": {
+    "dashboard_title": {
+      "type": "string",
+      "description": "Dashboard title",
+      "default": "{{ENV_NAME|title}} Security Dashboard",
+      "required": true
+    },
+    "security_indexes": {
+      "type": "array", 
+      "description": "Security-related indexes to monitor",
+      "default": ["security", "firewall", "ids"],
+      "required": true
+    },
+    "time_range_earliest": {
+      "type": "string",
+      "description": "Default earliest time for searches",
+      "default": "-24h@h",
+      "required": true
+    },
+    "alert_threshold": {
+      "type": "number",
+      "description": "High priority event threshold",
+      "default": 100,
+      "required": true
+    }
+  },
+  "dashboard": {
+    "version": "1.1",
+    "hideTitle": false,
+    "title": "{{dashboard_title}}",
+    "description": "Basic security operations monitoring",
+    "definition": {
+      "type": "absolute_time.earliest_time",
+      "value": "{{time_range_earliest}}"
+    },
+    "inputs": [
+      {
+        "type": "time",
+        "token": "time_picker",
+        "title": "Time Range",
+        "defaultValue": {
+          "earliest_time": "{{time_range_earliest}}",
+          "latest_time": "now"
+        }
+      },
+      {
+        "type": "dropdown",
+        "token": "index_filter",
+        "title": "Security Index",
+        "selectFirstChoice": true,
+        "choices": [
+          {
+            "label": "All Security Indexes",
+            "value": "*"
+          }{{#each security_indexes}},
+          {
+            "label": "{{this|title}}",
+            "value": "{{this}}"
+          }{{/each}}
+        ],
+        "defaultValue": "*"
+      }
+    ],
+    "layout": {
+      "type": "absolute",
+      "options": {},
+      "structure": [
+        {
+          "item": "viz_event_count",
+          "type": "block",
+          "position": {
+            "x": 0,
+            "y": 0,
+            "w": 400,
+            "h": 200
+          }
+        },
+        {
+          "item": "viz_index_breakdown",
+          "type": "block",
+          "position": {
+            "x": 400,
+            "y": 0,
+            "w": 400,
+            "h": 200
+          }
+        },
+        {
+          "item": "viz_timeline",
+          "type": "block",
+          "position": {
+            "x": 0,
+            "y": 200,
+            "w": 800,
+            "h": 300
+          }
+        }
+      ]
+    },
+    "dataSources": {
+      "ds_event_summary": {
+        "type": "ds.search",
+        "options": {
+          "query": "index IN ({{#each security_indexes}}\"{{this}}\"{{#unless @last}},{{/unless}}{{/each}}) | stats count as total_events, dc(sourcetype) as unique_sourcetypes | eval status=case(total_events>{{alert_threshold}},\"High Activity\",total_events>50,\"Normal\",1=1,\"Low Activity\")",
+          "queryParameters": {
+            "earliest": "$time_picker.earliest$",
+            "latest": "$time_picker.latest$"
+          }
+        }
+      },
+      "ds_index_breakdown": {
+        "type": "ds.search", 
+        "options": {
+          "query": "index IN ({{#each security_indexes}}\"{{this}}\"{{#unless @last}},{{/unless}}{{/each}}) | stats count by index | where index=\"$index_filter$\" OR \"$index_filter$\"=\"*\"",
+          "queryParameters": {
+            "earliest": "$time_picker.earliest$",
+            "latest": "$time_picker.latest$"
+          }
+        }
+      },
+      "ds_timeline": {
+        "type": "ds.search",
+        "options": {
+          "query": "index IN ({{#each security_indexes}}\"{{this}}\"{{#unless @last}},{{/unless}}{{/each}}) | bucket _time span=1h | stats count as events by _time, index",
+          "queryParameters": {
+            "earliest": "$time_picker.earliest$",
+            "latest": "$time_picker.latest$"
+          }
+        }
+      }
+    },
+    "visualizations": {
+      "viz_event_count": {
+        "type": "splunk.singlevalue",
+        "title": "Total Security Events",
+        "dataSources": {
+          "primary": "ds_event_summary"
+        },
+        "options": {
+          "majorValue": "> primary | seriesByName('total_events')",
+          "numberPrecision": 0
+        }
+      },
+      "viz_index_breakdown": {
+        "type": "splunk.pie",
+        "title": "Events by Index",
+        "dataSources": {
+          "primary": "ds_index_breakdown"
+        },
+        "options": {
+          "labelField": "index",
+          "valueField": "count"
+        }
+      },
+      "viz_timeline": {
+        "type": "splunk.line",
+        "title": "Security Events Over Time",
+        "dataSources": {
+          "primary": "ds_timeline"
+        },
+        "options": {
+          "xAxisTitleText": "Time",
+          "yAxisTitleText": "Event Count",
+          "legend": {
+            "placement": "bottom"
+          }
+        }
+      }
+    }
+  }
+}

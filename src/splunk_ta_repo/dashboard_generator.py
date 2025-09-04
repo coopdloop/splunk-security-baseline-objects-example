@@ -30,13 +30,19 @@ class DashboardGenerator:
         self.templates_dir = self.repo_root / "templates" / "dashboard-templates"
         
     def discover_templates(self) -> Dict[str, Path]:
-        """Discover available dashboard templates."""
+        """Discover available dashboard templates (.json and .json.hbs formats)."""
         templates = {}
         if self.templates_dir.exists():
-            for template_file in self.templates_dir.glob("*.json"):
-                # Skip metadata and non-template files
-                if not template_file.name.endswith("_metadata.json"):
-                    templates[template_file.stem] = template_file
+            # Support both .json and .json.hbs/.hbs formats
+            for pattern in ["*.json", "*.json.hbs", "*.hbs"]:
+                for template_file in self.templates_dir.glob(pattern):
+                    # Skip metadata and non-template files
+                    if not template_file.name.endswith("_metadata.json"):
+                        # Remove .json extension for consistent naming
+                        template_name = template_file.stem
+                        if template_name.endswith('.json'):
+                            template_name = template_name[:-5]  # Remove '.json' 
+                        templates[template_name] = template_file
         return templates
     
     def load_template(self, template_name: str) -> Dict[str, Any]:
@@ -53,9 +59,10 @@ class DashboardGenerator:
         template_path = templates[template_name]
         try:
             with open(template_path, 'r') as f:
-                template_data = json.load(f)
-        except json.JSONDecodeError as e:
-            raise TemplateError(f"Invalid JSON in template {template_name}: {e}")
+                template_content = f.read()
+                
+            # Try to load as JSON, but handle Handlebars templates more gracefully
+            template_data = self._load_template_with_handlebars(template_content, template_name)
         except IOError as e:
             raise TemplateError(f"Could not read template {template_name}: {e}")
         
@@ -66,13 +73,19 @@ class DashboardGenerator:
     
     def _validate_template_structure(self, template_data: Dict[str, Any], template_name: str):
         """Validate that template has required structure."""
-        required_sections = ['template_info', 'dashboard']
+        required_sections = ['template_info']
         
         for section in required_sections:
             if section not in template_data:
                 raise ValidationError(
                     f"Template '{template_name}' missing required section: {section}"
                 )
+        
+        # Check for dashboard content (either parsed or raw handlebars)
+        if 'dashboard' not in template_data and 'dashboard_template_raw' not in template_data:
+            raise ValidationError(
+                f"Template '{template_name}' missing dashboard content"
+            )
         
         # Validate template_info
         info = template_data['template_info']
@@ -140,11 +153,19 @@ class DashboardGenerator:
                     default_value = render_template(default_value, context)
                 context[param_name] = default_value
         
-        # Render dashboard template
+        # Render dashboard template (handle both formats)
         try:
-            dashboard_json = json.dumps(template_data['dashboard'], indent=2)
-            rendered_dashboard = render_template(dashboard_json, context)
-            dashboard_data = json.loads(rendered_dashboard)
+            if template_data.get('is_handlebars', False):
+                # Handle .json.hbs format - render entire template with context
+                raw_template = template_data['dashboard_template_raw']
+                rendered_content = render_template(raw_template, context)
+                full_rendered = json.loads(rendered_content)
+                dashboard_data = full_rendered['dashboard']
+            else:
+                # Handle .json format - dashboard is already parsed
+                dashboard_json = json.dumps(template_data['dashboard'], indent=2)
+                rendered_dashboard = render_template(dashboard_json, context)
+                dashboard_data = json.loads(rendered_dashboard)
         except json.JSONDecodeError as e:
             raise TemplateError(f"Template rendering produced invalid JSON: {e}")
         except Exception as e:
@@ -180,3 +201,92 @@ class DashboardGenerator:
             json.dump(metadata, f, indent=2)
         
         return output_file
+    
+    def _load_template_with_handlebars(self, template_content: str, template_name: str) -> Dict[str, Any]:
+        """Load a template that may contain Handlebars syntax."""
+        try:
+            # First try to parse as regular JSON
+            return json.loads(template_content)
+        except json.JSONDecodeError as e:
+            # If that fails, it's likely a Handlebars template
+            # Store the raw content and mark it as a handlebars template
+            try:
+                # Validate syntax by rendering with test context
+                test_context = self._create_comprehensive_test_context()
+                rendered = render_template(template_content, test_context)
+                parsed_test = json.loads(rendered)  # Validate structure
+                
+                # If validation passes, return a structure that preserves the raw template
+                return {
+                    'template_info': parsed_test.get('template_info', {
+                        'name': template_name,
+                        'title': f'{template_name.title()} Template',
+                        'description': f'Handlebars template: {template_name}'
+                    }),
+                    'parameters': parsed_test.get('parameters', {}),
+                    'dashboard_template_raw': template_content,  # Store raw content
+                    'is_handlebars': True  # Flag to indicate template type
+                }
+                
+            except Exception as render_error:
+                # If rendering also fails, raise the original JSON error with more context
+                raise TemplateError(
+                    f"Template {template_name} has invalid syntax. "
+                    f"JSON parse error: {e}. "
+                    f"Template rendering error: {render_error}"
+                )
+    
+    
+    def _create_comprehensive_test_context(self) -> Dict[str, Any]:
+        """Create comprehensive test context covering all common template patterns."""
+        return {
+            # Environment context
+            'ENV_NAME': 'test',
+            'environment': 'test',
+            
+            # Dashboard metadata
+            'dashboard_title': 'Test Dashboard',
+            'dashboard_description': 'Test dashboard for validation',
+            
+            # Common string parameters
+            'primary_index': 'security',
+            'streams_index': 'streams',
+            'expected_sources_lookup': 'expected_data_sources.csv',
+            
+            # Array parameters (most common cause of template issues)
+            'secondary_indexes': ['firewall', 'ids', 'proxy', 'endpoint'],
+            'capture_interfaces': ['eth0', 'eth1', 'bond0'],
+            'streams_sourcetypes': ['stream:tcp', 'stream:udp', 'stream:icmp', 'stream:dns', 'stream:http'],
+            'data_models_to_validate': ['Authentication', 'Network_Traffic', 'Malware', 'Web', 'Email'],
+            'primary_indexes': ['security', 'firewall', 'ids'],
+            
+            # Numeric parameters
+            'ingestion_threshold_gb': 1.0,
+            'missing_data_threshold_minutes': 60,
+            'compliance_threshold': 85.0,
+            'field_population_threshold': 75.0,
+            'expected_throughput_mbps': 1000,
+            'packet_loss_threshold': 1.0,
+            
+            # Time parameters
+            'time_range_earliest': '-24h@h',
+            'time_range_latest': 'now',
+            
+            # Complex objects (JSON)
+            'required_cim_fields': {
+                'Authentication': ['user', 'src', 'dest', 'action', 'app'],
+                'Network_Traffic': ['src_ip', 'dest_ip', 'src_port', 'dest_port', 'protocol', 'action'],
+                'Malware': ['signature', 'file_name', 'file_hash', 'dest', 'vendor_product'],
+                'Web': ['url', 'uri_path', 'http_method', 'status', 'src_ip'],
+                'Email': ['recipient', 'sender', 'subject', 'action']
+            },
+            
+            # Boolean parameters
+            'enable_acceleration': True,
+            'strict_validation': False,
+            
+            # Additional context that might be needed
+            'org_name': 'test_org',
+            'splunk_version': '9.0+',
+            'dashboard_type': 'splunk_dashboard_studio'
+        }

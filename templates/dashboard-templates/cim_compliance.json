@@ -97,13 +97,11 @@
           {
             "label": "All Data Models",
             "value": "*"
-          }
-          {{#each data_models_to_validate}},
+          }{{#each data_models_to_validate}},
           {
             "label": "{{this}}",
             "value": "{{this}}"
-          }
-          {{/each}}
+          }{{/each}}
         ],
         "defaultValue": "*"
       },
@@ -116,13 +114,11 @@
           {
             "label": "All Indexes",
             "value": "*"
-          }
-          {{#each primary_indexes}},
+          }{{#each primary_indexes}},
           {
             "label": "{{this|title}}",
             "value": "{{this}}"
-          }
-          {{/each}}
+          }{{/each}}
         ],
         "defaultValue": "*"
       }

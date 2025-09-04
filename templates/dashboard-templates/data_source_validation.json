@@ -94,13 +94,11 @@
           {
             "label": "{{primary_index|title}}",
             "value": "{{primary_index}}"
-          }
-          {{#each secondary_indexes}},
+          }{{#each secondary_indexes}},
           {
             "label": "{{this|title}}",
             "value": "{{this}}"
-          }
-          {{/each}}
+          }{{/each}}
         ],
         "defaultValue": "{{primary_index}}"
       }

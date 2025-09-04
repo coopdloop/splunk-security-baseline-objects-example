@@ -1,0 +1,5 @@
+{
+  "dashboard_title": "Production Data Health Monitor",
+  "primary_index": "security",
+  "time_range_earliest": "-4h@h"
+}
