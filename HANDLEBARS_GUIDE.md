@@ -33,6 +33,48 @@ The dashboard generator now supports advanced **Handlebars templating** with `.j
 }
 ```
 
+## 🎛️ Dashboard Studio Input Format
+
+### ✅ Correct Structure (All templates now use this):
+```json
+"inputs": {
+  "input_timerange": {
+    "type": "input.timerange",
+    "title": "Time Range", 
+    "options": {
+      "defaultValue": {
+        "earliest_time": "-24h@h",
+        "latest_time": "now"
+      },
+      "token": "time_picker"
+    }
+  },
+  "input_index_filter": {
+    "type": "input.dropdown",
+    "title": "Index Filter",
+    "options": {
+      "items": [
+        {"label": "Security", "value": "security"},
+        {"label": "Firewall", "value": "firewall"}
+      ],
+      "defaultValue": "security",
+      "token": "index_filter"
+    }
+  }
+},
+"layout": {
+  "globalInputs": ["input_timerange", "input_index_filter"],
+  "structure": [...]
+}
+```
+
+### 🎚️ Supported Input Types:
+- **`input.timerange`** - Time picker with earliest/latest
+- **`input.dropdown`** - Dropdown with items array
+- **`input.text`** - Text input field
+- **`input.checkbox`** - Checkbox input
+- **`input.radio`** - Radio button group
+
 ## 🌟 Enhanced Features
 
 ### 1. **Proper Handlebars Syntax**
@@ -141,15 +183,23 @@ uv run create-dashboard generate security_basic \
   },
   "dashboard": {
     "title": "{{dashboard_title}}",
-    "inputs": [
-      {
-        "type": "dropdown",
-        "choices": [
-          {"label": "All Indexes", "value": "*"}{{#each security_indexes}},
-          {"label": "{{this|title}}", "value": "{{this}}"}{{/each}}
-        ]
+    "inputs": {
+      "input_index_filter": {
+        "type": "input.dropdown",
+        "title": "Security Index",
+        "options": {
+          "items": [
+            {"label": "All Indexes", "value": "*"}{{#each security_indexes}},
+            {"label": "{{this|title}}", "value": "{{this}}"}{{/each}}
+          ],
+          "token": "index_filter"
+        }
       }
-    ],
+    },
+    "layout": {
+      "globalInputs": ["input_index_filter"],
+      "structure": [...]
+    },
     "dataSources": {
       "ds_events": {
         "options": {
@@ -170,21 +220,30 @@ uv run create-dashboard generate security_basic \
 }
 ```
 
-### Generated Output
+### Generated Output (Dashboard Studio Format)
 ```json
 {
   "title": "Production Security Operations",
-  "inputs": [
-    {
-      "choices": [
-        {"label": "All Indexes", "value": "*"},
-        {"label": "Security", "value": "security"},
-        {"label": "Firewall", "value": "firewall"},
-        {"label": "Ids", "value": "ids"}, 
-        {"label": "Endpoint", "value": "endpoint"}
-      ]
+  "inputs": {
+    "input_index_filter": {
+      "type": "input.dropdown",
+      "title": "Security Index",
+      "options": {
+        "items": [
+          {"label": "All Indexes", "value": "*"},
+          {"label": "Security", "value": "security"},
+          {"label": "Firewall", "value": "firewall"},
+          {"label": "Ids", "value": "ids"}, 
+          {"label": "Endpoint", "value": "endpoint"}
+        ],
+        "token": "index_filter"
+      }
     }
-  ],
+  },
+  "layout": {
+    "globalInputs": ["input_index_filter"],
+    "structure": [...]
+  },
   "dataSources": {
     "ds_events": {
       "options": {

@@ -35,20 +35,23 @@
       "type": "absolute_time.earliest_time",
       "value": "{{time_range_earliest}}"
     },
-    "inputs": [
-      {
-        "type": "time",
-        "token": "time_picker",
+    "inputs": {
+      "input_timerange": {
+        "type": "input.timerange",
         "title": "Time Range",
-        "defaultValue": {
-          "earliest_time": "{{time_range_earliest}}",
-          "latest_time": "now"
+        "options": {
+          "defaultValue": {
+            "earliest_time": "{{time_range_earliest}}",
+            "latest_time": "now"
+          },
+          "token": "time_picker"
         }
       }
-    ],
+    },
     "layout": {
       "type": "absolute",
       "options": {},
+      "globalInputs": ["input_timerange"],
       "structure": [
         {
           "item": "viz_event_count",

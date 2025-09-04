@@ -78,54 +78,61 @@
       "type": "absolute_time.earliest_time",
       "value": "{{time_range_earliest}}"
     },
-    "inputs": [
-      {
-        "type": "time",
-        "token": "time_picker",
-        "title": "Time Range", 
-        "defaultValue": {
-          "earliest_time": "{{time_range_earliest}}",
-          "latest_time": "{{time_range_latest}}"
+    "inputs": {
+      "input_timerange": {
+        "type": "input.timerange",
+        "title": "Time Range",
+        "options": {
+          "defaultValue": {
+            "earliest_time": "{{time_range_earliest}}",
+            "latest_time": "{{time_range_latest}}"
+          },
+          "token": "time_picker"
         }
       },
-      {
-        "type": "dropdown",
-        "token": "datamodel_filter",
+      "input_datamodel_filter": {
+        "type": "input.dropdown",
         "title": "Data Model",
-        "selectFirstChoice": true,
-        "choices": [
-          {
-            "label": "All Data Models",
-            "value": "*"
-          }{{#each data_models_to_validate}},
-          {
-            "label": "{{this}}",
-            "value": "{{this}}"
-          }{{/each}}
-        ],
-        "defaultValue": "*"
+        "options": {
+          "selectFirstChoice": true,
+          "items": [
+            {
+              "label": "All Data Models",
+              "value": "*"
+            }{{#each data_models_to_validate}},
+            {
+              "label": "{{this}}",
+              "value": "{{this}}"
+            }{{/each}}
+          ],
+          "defaultValue": "*",
+          "token": "datamodel_filter"
+        }
       },
-      {
-        "type": "dropdown", 
-        "token": "index_filter",
+      "input_index_filter": {
+        "type": "input.dropdown",
         "title": "Index Filter",
-        "selectFirstChoice": true,
-        "choices": [
-          {
-            "label": "All Indexes",
-            "value": "*"
-          }{{#each primary_indexes}},
-          {
-            "label": "{{this|title}}",
-            "value": "{{this}}"
-          }{{/each}}
-        ],
-        "defaultValue": "*"
+        "options": {
+          "selectFirstChoice": true,
+          "items": [
+            {
+              "label": "All Indexes",
+              "value": "*"
+            }{{#each primary_indexes}},
+            {
+              "label": "{{this|title}}",
+              "value": "{{this}}"
+            }{{/each}}
+          ],
+          "defaultValue": "*",
+          "token": "index_filter"
+        }
       }
-    ],
+    },
     "layout": {
       "type": "absolute",
       "options": {},
+      "globalInputs": ["input_timerange", "input_datamodel_filter", "input_index_filter"],
       "structure": [
         {
           "item": "viz_overall_compliance",

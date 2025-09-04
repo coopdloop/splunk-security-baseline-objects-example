@@ -42,37 +42,42 @@
       "type": "absolute_time.earliest_time",
       "value": "{{time_range_earliest}}"
     },
-    "inputs": [
-      {
-        "type": "time",
-        "token": "time_picker",
+    "inputs": {
+      "input_timerange": {
+        "type": "input.timerange",
         "title": "Time Range",
-        "defaultValue": {
-          "earliest_time": "{{time_range_earliest}}",
-          "latest_time": "now"
+        "options": {
+          "defaultValue": {
+            "earliest_time": "{{time_range_earliest}}",
+            "latest_time": "now"
+          },
+          "token": "time_picker"
         }
       },
-      {
-        "type": "dropdown",
-        "token": "index_filter",
+      "input_index_filter": {
+        "type": "input.dropdown",
         "title": "Security Index",
-        "selectFirstChoice": true,
-        "choices": [
-          {
-            "label": "All Security Indexes",
-            "value": "*"
-          }{{#each security_indexes}},
-          {
-            "label": "{{this|title}}",
-            "value": "{{this}}"
-          }{{/each}}
-        ],
-        "defaultValue": "*"
+        "options": {
+          "selectFirstChoice": true,
+          "items": [
+            {
+              "label": "All Security Indexes",
+              "value": "*"
+            }{{#each security_indexes}},
+            {
+              "label": "{{this|title}}",
+              "value": "{{this}}"
+            }{{/each}}
+          ],
+          "defaultValue": "*",
+          "token": "index_filter"
+        }
       }
-    ],
+    },
     "layout": {
       "type": "absolute",
       "options": {},
+      "globalInputs": ["input_timerange", "input_index_filter"],
       "structure": [
         {
           "item": "viz_event_count",

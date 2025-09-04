@@ -56,6 +56,7 @@ uv run create-dashboard generate simple_data_validation \
 - **🆕 Handlebars Support** - Advanced templating with .json.hbs files
 - **🆕 Strict Validation Mode** - Performance and security checking
 - **🆕 Enhanced Template Engine** - Comprehensive error detection and validation
+- **🆕 Dashboard Studio Format** - Proper Splunk Dashboard Studio JSON structure
 
 ### 🏗️ Multi-Environment Management
 This repository supports managing Splunk configurations across multiple environments with inheritance:

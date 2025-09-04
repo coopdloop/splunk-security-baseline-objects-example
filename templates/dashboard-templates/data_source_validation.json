@@ -71,41 +71,46 @@
       "type": "absolute_time.earliest_time",
       "value": "{{time_range_earliest}}"
     },
-    "inputs": [
-      {
-        "type": "time",
-        "token": "time_picker",
+    "inputs": {
+      "input_timerange": {
+        "type": "input.timerange",
         "title": "Time Range",
-        "defaultValue": {
-          "earliest_time": "{{time_range_earliest}}",
-          "latest_time": "{{time_range_latest}}"
+        "options": {
+          "defaultValue": {
+            "earliest_time": "{{time_range_earliest}}",
+            "latest_time": "{{time_range_latest}}"
+          },
+          "token": "time_picker"
         }
       },
-      {
-        "type": "dropdown",
-        "token": "index_filter", 
+      "input_index_filter": {
+        "type": "input.dropdown",
         "title": "Index Filter",
-        "selectFirstChoice": true,
-        "choices": [
-          {
-            "label": "All Monitored Indexes",
-            "value": "*"
-          },
-          {
-            "label": "{{primary_index|title}}",
-            "value": "{{primary_index}}"
-          }{{#each secondary_indexes}},
-          {
-            "label": "{{this|title}}",
-            "value": "{{this}}"
-          }{{/each}}
-        ],
-        "defaultValue": "{{primary_index}}"
+        "options": {
+          "selectFirstChoice": true,
+          "items": [
+            {
+              "label": "All Monitored Indexes",
+              "value": "*"
+            },
+            {
+              "label": "{{primary_index|title}}",
+              "value": "{{primary_index}}"
+            }{{#each secondary_indexes}},
+            {
+              "label": "{{this|title}}",
+              "value": "{{this}}"
+            }{{/each}}
+          ],
+          "defaultValue": "{{primary_index}}",
+          "token": "index_filter"
+        }
       }
-    ],
+    },
     "layout": {
       "type": "absolute",
       "options": {},
+      "globalInputs": ["input_timerange", "input_index_filter"],
       "structure": [
         {
           "item": "viz_ingestion_summary",

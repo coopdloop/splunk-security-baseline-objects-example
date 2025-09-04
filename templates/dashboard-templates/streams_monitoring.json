@@ -77,54 +77,61 @@
       "type": "absolute_time.earliest_time", 
       "value": "{{time_range_earliest}}"
     },
-    "inputs": [
-      {
-        "type": "time",
-        "token": "time_picker",
+    "inputs": {
+      "input_timerange": {
+        "type": "input.timerange",
         "title": "Time Range",
-        "defaultValue": {
-          "earliest_time": "{{time_range_earliest}}",
-          "latest_time": "{{time_range_latest}}"
+        "options": {
+          "defaultValue": {
+            "earliest_time": "{{time_range_earliest}}",
+            "latest_time": "{{time_range_latest}}"
+          },
+          "token": "time_picker"
         }
       },
-      {
-        "type": "dropdown",
-        "token": "interface_filter",
-        "title": "Network Interface", 
-        "selectFirstChoice": true,
-        "choices": [
-          {
-            "label": "All Interfaces",
-            "value": "*"
-          }{{#each capture_interfaces}},
-          {
-            "label": "{{this}}",
-            "value": "{{this}}"
-          }{{/each}}
-        ],
-        "defaultValue": "*"
+      "input_interface_filter": {
+        "type": "input.dropdown",
+        "title": "Network Interface",
+        "options": {
+          "selectFirstChoice": true,
+          "items": [
+            {
+              "label": "All Interfaces",
+              "value": "*"
+            }{{#each capture_interfaces}},
+            {
+              "label": "{{this}}",
+              "value": "{{this}}"
+            }{{/each}}
+          ],
+          "defaultValue": "*",
+          "token": "interface_filter"
+        }
       },
-      {
-        "type": "dropdown",
-        "token": "sourcetype_filter",
+      "input_sourcetype_filter": {
+        "type": "input.dropdown",
         "title": "Protocol Filter",
-        "selectFirstChoice": true,
-        "choices": [
-          {
-            "label": "All Protocols", 
-            "value": "*"
-          }{{#each streams_sourcetypes}},
-          {
-            "label": "{{this|replace 'stream:' ''|title}}",
-            "value": "{{this}}"
-          }{{/each}}
-        ],
-        "defaultValue": "*"
+        "options": {
+          "selectFirstChoice": true,
+          "items": [
+            {
+              "label": "All Protocols",
+              "value": "*"
+            }{{#each streams_sourcetypes}},
+            {
+              "label": "{{this|replace 'stream:' ''|title}}",
+              "value": "{{this}}"
+            }{{/each}}
+          ],
+          "defaultValue": "*",
+          "token": "sourcetype_filter"
+        }
       }
-    ],
+    },
     "layout": {
       "type": "absolute",
       "options": {},
+      "globalInputs": ["input_timerange", "input_interface_filter", "input_sourcetype_filter"],
       "structure": [
         {
           "item": "viz_capture_rate",
