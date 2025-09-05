@@ -1,0 +1,12 @@
+{
+  "dashboard_title": "Cisco ISE Data Stream Validation Dashboard",
+  "technology_name": "Cisco Identity Services Engine", 
+  "technology_short_name": "ISE",
+  "ta_name": "Splunk_TA_cisco-ise",
+  "primary_indexes": ["security", "network", "main"],
+  "sourcetypes": ["cisco:ise:syslog", "cisco:ise:admin", "cisco:ise:accounting"],
+  "cim_tag_1": "authentication", 
+  "cim_tag_2": "network",
+  "cim_check_timerange": "-60m@m",
+  "global_time_default": "-24h@h,now"
+}

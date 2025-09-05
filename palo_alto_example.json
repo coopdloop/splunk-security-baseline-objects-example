@@ -1,0 +1,13 @@
+{
+  "_comment": "Example configuration for Palo Alto Networks firewall data validation",
+  "dashboard_title": "Palo Alto Networks Security Dashboard",
+  "technology_name": "Palo Alto Networks", 
+  "technology_short_name": "PAN",
+  "ta_name": "Splunk_TA_paloalto",
+  "primary_indexes": ["firewall", "security", "network"],
+  "sourcetypes": ["pan:threat", "pan:traffic", "pan:system", "pan:config"],
+  "cim_tag_1": "malware",
+  "cim_tag_2": "ids", 
+  "cim_check_timerange": "-60m@m",
+  "global_time_default": "-24h@h,now"
+}

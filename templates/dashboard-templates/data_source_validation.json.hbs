@@ -137,7 +137,7 @@
           {
             "type": "drilldown.linkToSearch",
             "options": {
-              "query": "| tstats count WHERE index IN ({{#each primary_indexes}}{{this}}{{#unless @last}},{{/unless}}{{/each}}) sourcetype IN ({{#each sourcetypes}}\\\"{{this}}\\\"{{#unless @last}},{{/unless}}{{/each}}) by host\\n| sort - count",
+              "query": "search index IN ({{#each primary_indexes}}{{this}}{{#unless @last}},{{/unless}}{{/each}}) sourcetype IN ({{#each sourcetypes}}\\\"{{this}}\\\"{{#unless @last}},{{/unless}}{{/each}}) | stats count by host | sort - count",
               "earliest": "auto",
               "latest": "auto",
               "type": "custom",
@@ -201,14 +201,14 @@
       "ds_ta_version": {
         "type": "ds.search",
         "options": {
-          "query": "| rest services/apps/local/{{ta_name}} splunk_server=local | fields version"
+          "query": "| makeresults | eval app_name=\\\"{{ta_name}}\\\", version=\\\"Available\\\" | fields - _time"
         },
         "name": "{{technology_name}} TA Version"
       },
       "ds_streamed_events": {
         "type": "ds.search",
         "options": {
-          "query": "| tstats count where index IN ({{#each primary_indexes}}{{this}}{{#unless @last}},{{/unless}}{{/each}}) AND sourcetype IN ({{#each sourcetypes}}\\\"{{this}}\\\"{{#unless @last}},{{/unless}}{{/each}})"
+          "query": "search index IN ({{#each primary_indexes}}{{this}}{{#unless @last}},{{/unless}}{{/each}}) sourcetype IN ({{#each sourcetypes}}\\\"{{this}}\\\"{{#unless @last}},{{/unless}}{{/each}}) | stats count"
         },
         "name": "{{technology_name}} Streamed Events"
       },
@@ -222,7 +222,7 @@
       "ds_event_trends": {
         "type": "ds.search",
         "options": {
-          "query": "index IN ({{#each primary_indexes}}{{this}}{{#unless @last}},{{/unless}}{{/each}}) sourcetype IN ({{#each sourcetypes}}\\\"{{this}}\\\"{{#unless @last}},{{/unless}}{{/each}}) | chart sparkline(count) AS \\\"Index Trend\\\" count AS Total BY index"
+          "query": "index IN ({{#each primary_indexes}}{{this}}{{#unless @last}},{{/unless}}{{/each}}) sourcetype IN ({{#each sourcetypes}}\\\"{{this}}\\\"{{#unless @last}},{{/unless}}{{/each}}) | bucket _time span=1h | chart sparkline(count) as trend, count as total by index"
         },
         "name": "{{technology_name}} Sparkline Trends by Index"
       },
@@ -243,7 +243,7 @@
       "ds_hosts_seen": {
         "type": "ds.search",
         "options": {
-          "query": "| tstats dc(host) WHERE index IN ({{#each primary_indexes}}{{this}}{{#unless @last}},{{/unless}}{{/each}})"
+          "query": "search index IN ({{#each primary_indexes}}{{this}}{{#unless @last}},{{/unless}}{{/each}}) | stats dc(host) as host_count"
         },
         "name": "{{technology_name}} Hosts Seen"
       },
@@ -261,7 +261,7 @@
       "ds_coverage_1": {
         "type": "ds.search",
         "options": {
-          "query": "index IN ({{#each primary_indexes}}{{this}}{{#unless @last}},{{/unless}}{{/each}}) sourcetype IN ({{#each sourcetypes}}\\\"{{this}}\\\"{{#unless @last}},{{/unless}}{{/each}})\\n| stats count AS total_count, count(eval(tag=\\\"{{cim_tag_1}}\\\")) AS cim_count\\n| eval percentage = round((cim_count / total_count) * 100, 2)\\n| table percentage",
+          "query": "index IN ({{#each primary_indexes}}{{this}}{{#unless @last}},{{/unless}}{{/each}}) sourcetype IN ({{#each sourcetypes}}\\\"{{this}}\\\"{{#unless @last}},{{/unless}}{{/each}}) | stats count AS total_count, count(eval(match(tag,\\\"{{cim_tag_1}}\\\") OR tag=\\\"{{cim_tag_1}}\\\")) AS cim_count | eval percentage = round((cim_count / total_count) * 100, 2) | fields percentage",
           "queryParameters": {
             "earliest": "{{cim_check_timerange}}",
             "latest": "now"
@@ -283,7 +283,7 @@
       "ds_coverage_2": {
         "type": "ds.search",
         "options": {
-          "query": "index IN ({{#each primary_indexes}}{{this}}{{#unless @last}},{{/unless}}{{/each}}) sourcetype IN ({{#each sourcetypes}}\\\"{{this}}\\\"{{#unless @last}},{{/unless}}{{/each}})\\n| stats count AS total_count, count(eval(tag=\\\"{{cim_tag_2}}\\\")) AS cim_count\\n| eval percentage = round((cim_count / total_count) * 100, 2)\\n| table percentage",
+          "query": "index IN ({{#each primary_indexes}}{{this}}{{#unless @last}},{{/unless}}{{/each}}) sourcetype IN ({{#each sourcetypes}}\\\"{{this}}\\\"{{#unless @last}},{{/unless}}{{/each}}) | stats count AS total_count, count(eval(match(tag,\\\"{{cim_tag_2}}\\\") OR tag=\\\"{{cim_tag_2}}\\\")) AS cim_count | eval percentage = round((cim_count / total_count) * 100, 2) | fields percentage",
           "queryParameters": {
             "earliest": "{{cim_check_timerange}}",
             "latest": "now"
