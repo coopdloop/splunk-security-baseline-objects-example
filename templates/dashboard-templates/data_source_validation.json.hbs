@@ -1,0 +1,482 @@
+{
+  "template_info": {
+    "name": "data_source_validation",
+    "title": "Data Source Validation Dashboard",
+    "description": "Comprehensive data source monitoring with ingestion tracking, CIM compliance validation, and event distribution analysis",
+    "category": "validation",
+    "version": "2.0.0",
+    "format": "handlebars"
+  },
+  "parameters": {
+    "dashboard_title": {
+      "type": "string",
+      "description": "Dashboard title",
+      "default": "{{technology_name}} Data Stream Dashboard",
+      "required": true
+    },
+    "technology_name": {
+      "type": "string",
+      "description": "Technology or data source name (e.g., 'Cisco ISE', 'Palo Alto')",
+      "default": "Data Source",
+      "required": true
+    },
+    "technology_short_name": {
+      "type": "string",
+      "description": "Short name for display purposes",
+      "default": "DS",
+      "required": true
+    },
+    "ta_name": {
+      "type": "string", 
+      "description": "Technical Add-on name",
+      "default": "Splunk_TA_datasource",
+      "required": true
+    },
+    "primary_indexes": {
+      "type": "array",
+      "description": "Primary indexes to monitor",
+      "default": ["main", "security"],
+      "required": true
+    },
+    "sourcetypes": {
+      "type": "array",
+      "description": "Sourcetypes to monitor",
+      "default": ["datasource:log"],
+      "required": true
+    },
+    "cim_tag_1": {
+      "type": "string",
+      "description": "First CIM tag to validate",
+      "default": "authentication",
+      "required": true
+    },
+    "cim_tag_2": {
+      "type": "string",
+      "description": "Second CIM tag to validate", 
+      "default": "change",
+      "required": true
+    },
+    "cim_check_timerange": {
+      "type": "string",
+      "description": "Time range for CIM compliance checks",
+      "default": "-60m@m",
+      "required": true
+    },
+    "global_time_default": {
+      "type": "string",
+      "description": "Default global time range",
+      "default": "-24h@h,now",
+      "required": true
+    }
+  },
+  "dashboard": {
+    "version": "1.1",
+    "hideTitle": false,
+    "title": "{{dashboard_title}}",
+    "description": "Monitor {{technology_name}} data ingestion, validate CIM compliance, and analyze event distribution",
+    "visualizations": {
+      "viz_ta_version": {
+        "type": "splunk.singlevalue",
+        "dataSources": {
+          "primary": "ds_ta_version"
+        },
+        "title": "{{technology_short_name}} TA Version"
+      },
+      "viz_streamed_events": {
+        "type": "splunk.singlevalue",
+        "dataSources": {
+          "primary": "ds_streamed_events"
+        },
+        "title": "{{technology_short_name}} Streamed Events"
+      },
+      "viz_event_distribution": {
+        "type": "splunk.pie",
+        "dataSources": {
+          "primary": "ds_event_distribution"
+        },
+        "title": "Event Distribution by Index"
+      },
+      "viz_event_trends": {
+        "type": "splunk.table",
+        "dataSources": {
+          "primary": "ds_event_trends"
+        },
+        "title": "Event Trends by Index"
+      },
+      "viz_sources": {
+        "type": "splunk.pie",
+        "dataSources": {
+          "primary": "ds_sources"
+        },
+        "title": "Sources"
+      },
+      "viz_sourcetypes": {
+        "type": "splunk.pie",
+        "dataSources": {
+          "primary": "ds_sourcetypes"
+        },
+        "title": "Sourcetypes"
+      },
+      "viz_background_rectangle": {
+        "type": "splunk.rectangle"
+      },
+      "viz_cim_header": {
+        "type": "splunk.markdown",
+        "options": {
+          "markdown": "**CIM Compliance** - Last 60 Minutes - WIP",
+          "fontSize": "extraLarge"
+        }
+      },
+      "viz_hosts_seen": {
+        "type": "splunk.singlevalue",
+        "dataSources": {
+          "primary": "ds_hosts_seen"
+        },
+        "title": "Hosts Seen",
+        "eventHandlers": [
+          {
+            "type": "drilldown.linkToSearch",
+            "options": {
+              "query": "| tstats count WHERE index IN ({{#each primary_indexes}}{{this}}{{#unless @last}},{{/unless}}{{/each}}) sourcetype IN ({{#each sourcetypes}}\\\"{{this}}\\\"{{#unless @last}},{{/unless}}{{/each}}) by host\\n| sort - count",
+              "earliest": "auto",
+              "latest": "auto",
+              "type": "custom",
+              "newTab": true
+            }
+          }
+        ]
+      },
+      "viz_cim_1": {
+        "type": "splunk.singlevalue",
+        "dataSources": {
+          "primary": "ds_cim_1"
+        },
+        "title": "{{cim_tag_1}}",
+        "options": {
+          "backgroundColor": "#294e70"
+        }
+      },
+      "viz_coverage_1": {
+        "type": "splunk.singlevalue",
+        "options": {
+          "backgroundColor": "#294e70",
+          "unit": "%"
+        },
+        "dataSources": {
+          "primary": "ds_coverage_1"
+        },
+        "title": "{{cim_tag_1}} Coverage"
+      },
+      "viz_cim_2": {
+        "type": "splunk.singlevalue",
+        "dataSources": {
+          "primary": "ds_cim_2"
+        },
+        "title": "{{cim_tag_2}}",
+        "options": {
+          "backgroundColor": "#294e70"
+        }
+      },
+      "viz_coverage_2": {
+        "type": "splunk.singlevalue",
+        "options": {
+          "backgroundColor": "#294e70",
+          "unit": "%"
+        },
+        "dataSources": {
+          "primary": "ds_coverage_2"
+        },
+        "title": "{{cim_tag_2}} Coverage"
+      },
+      "viz_unsupported_types": {
+        "type": "splunk.table",
+        "title": "Unsupported Record Types",
+        "description": "Table shows {{technology_name}} event types that may not have CIM fields applied.",
+        "dataSources": {
+          "primary": "ds_unsupported_types"
+        }
+      }
+    },
+    "dataSources": {
+      "ds_ta_version": {
+        "type": "ds.search",
+        "options": {
+          "query": "| rest services/apps/local/{{ta_name}} splunk_server=local | fields version"
+        },
+        "name": "{{technology_name}} TA Version"
+      },
+      "ds_streamed_events": {
+        "type": "ds.search",
+        "options": {
+          "query": "| tstats count where index IN ({{#each primary_indexes}}{{this}}{{#unless @last}},{{/unless}}{{/each}}) AND sourcetype IN ({{#each sourcetypes}}\\\"{{this}}\\\"{{#unless @last}},{{/unless}}{{/each}})"
+        },
+        "name": "{{technology_name}} Streamed Events"
+      },
+      "ds_event_distribution": {
+        "type": "ds.search",
+        "options": {
+          "query": "index IN ({{#each primary_indexes}}{{this}}{{#unless @last}},{{/unless}}{{/each}}) sourcetype IN ({{#each sourcetypes}}\\\"{{this}}\\\"{{#unless @last}},{{/unless}}{{/each}}) | stats count by index"
+        },
+        "name": "{{technology_name}} Event Distribution by Index"
+      },
+      "ds_event_trends": {
+        "type": "ds.search",
+        "options": {
+          "query": "index IN ({{#each primary_indexes}}{{this}}{{#unless @last}},{{/unless}}{{/each}}) sourcetype IN ({{#each sourcetypes}}\\\"{{this}}\\\"{{#unless @last}},{{/unless}}{{/each}}) | chart sparkline(count) AS \\\"Index Trend\\\" count AS Total BY index"
+        },
+        "name": "{{technology_name}} Sparkline Trends by Index"
+      },
+      "ds_sources": {
+        "type": "ds.search",
+        "options": {
+          "query": "index IN ({{#each primary_indexes}}{{this}}{{#unless @last}},{{/unless}}{{/each}}) sourcetype IN ({{#each sourcetypes}}\\\"{{this}}\\\"{{#unless @last}},{{/unless}}{{/each}}) | top source"
+        },
+        "name": "{{technology_name}} Sources Seen"
+      },
+      "ds_sourcetypes": {
+        "type": "ds.search",
+        "options": {
+          "query": "index IN ({{#each primary_indexes}}{{this}}{{#unless @last}},{{/unless}}{{/each}}) sourcetype IN ({{#each sourcetypes}}\\\"{{this}}\\\"{{#unless @last}},{{/unless}}{{/each}}) | top sourcetype"
+        },
+        "name": "{{technology_name}} Sourcetypes Seen"
+      },
+      "ds_hosts_seen": {
+        "type": "ds.search",
+        "options": {
+          "query": "| tstats dc(host) WHERE index IN ({{#each primary_indexes}}{{this}}{{#unless @last}},{{/unless}}{{/each}})"
+        },
+        "name": "{{technology_name}} Hosts Seen"
+      },
+      "ds_cim_1": {
+        "type": "ds.search",
+        "options": {
+          "query": "index IN ({{#each primary_indexes}}{{this}}{{#unless @last}},{{/unless}}{{/each}}) sourcetype IN ({{#each sourcetypes}}\\\"{{this}}\\\"{{#unless @last}},{{/unless}}{{/each}}) tag IN (\\\"{{cim_tag_1}}\\\") | stats count AS total_count",
+          "queryParameters": {
+            "earliest": "{{cim_check_timerange}}",
+            "latest": "now"
+          }
+        },
+        "name": "{{technology_short_name}} CIM {{cim_tag_1}} Events"
+      },
+      "ds_coverage_1": {
+        "type": "ds.search",
+        "options": {
+          "query": "index IN ({{#each primary_indexes}}{{this}}{{#unless @last}},{{/unless}}{{/each}}) sourcetype IN ({{#each sourcetypes}}\\\"{{this}}\\\"{{#unless @last}},{{/unless}}{{/each}})\\n| stats count AS total_count, count(eval(tag=\\\"{{cim_tag_1}}\\\")) AS cim_count\\n| eval percentage = round((cim_count / total_count) * 100, 2)\\n| table percentage",
+          "queryParameters": {
+            "earliest": "{{cim_check_timerange}}",
+            "latest": "now"
+          }
+        },
+        "name": "{{technology_short_name}} {{cim_tag_1}} Events Coverage"
+      },
+      "ds_cim_2": {
+        "type": "ds.search",
+        "options": {
+          "query": "index IN ({{#each primary_indexes}}{{this}}{{#unless @last}},{{/unless}}{{/each}}) sourcetype IN ({{#each sourcetypes}}\\\"{{this}}\\\"{{#unless @last}},{{/unless}}{{/each}}) tag IN (\\\"{{cim_tag_2}}\\\") | stats count AS total_count",
+          "queryParameters": {
+            "earliest": "{{cim_check_timerange}}",
+            "latest": "now"
+          }
+        },
+        "name": "{{technology_short_name}} CIM {{cim_tag_2}} Events"
+      },
+      "ds_coverage_2": {
+        "type": "ds.search",
+        "options": {
+          "query": "index IN ({{#each primary_indexes}}{{this}}{{#unless @last}},{{/unless}}{{/each}}) sourcetype IN ({{#each sourcetypes}}\\\"{{this}}\\\"{{#unless @last}},{{/unless}}{{/each}})\\n| stats count AS total_count, count(eval(tag=\\\"{{cim_tag_2}}\\\")) AS cim_count\\n| eval percentage = round((cim_count / total_count) * 100, 2)\\n| table percentage",
+          "queryParameters": {
+            "earliest": "{{cim_check_timerange}}",
+            "latest": "now"
+          }
+        },
+        "name": "{{technology_short_name}} {{cim_tag_2}} Events Coverage"
+      },
+      "ds_unsupported_types": {
+        "type": "ds.search",
+        "options": {
+          "query": "index IN ({{#each primary_indexes}}{{this}}{{#unless @last}},{{/unless}}{{/each}}) sourcetype IN ({{#each sourcetypes}}\\\"{{this}}\\\"{{#unless @last}},{{/unless}}{{/each}}) NOT tag IN ({{#each cim_tags}}{{this}}{{#unless @last}}, {{/unless}}{{/each}})\\n| stats values(Type) as record_type, sparkline(count, 1m) as trend",
+          "queryParameters": {
+            "earliest": "{{cim_check_timerange}}",
+            "latest": "now"
+          }
+        },
+        "name": "Unsupported {{technology_name}} Types"
+      }
+    },
+    "defaults": {
+      "dataSources": {
+        "ds.search": {
+          "options": {
+            "queryParameters": {
+              "latest": "$global_time.latest$",
+              "earliest": "$global_time.earliest$"
+            }
+          }
+        }
+      }
+    },
+    "inputs": {
+      "input_global_timerange": {
+        "type": "input.timerange",
+        "options": {
+          "token": "global_time",
+          "defaultValue": "{{global_time_default}}"
+        },
+        "title": "Global Time Range"
+      }
+    },
+    "layout": {
+      "type": "absolute",
+      "options": {
+        "width": 1440,
+        "height": 960,
+        "display": "auto"
+      },
+      "structure": [
+        {
+          "item": "viz_ta_version",
+          "type": "block",
+          "position": {
+            "x": 0,
+            "y": 0,
+            "w": 280,
+            "h": 240
+          }
+        },
+        {
+          "item": "viz_streamed_events",
+          "type": "block",
+          "position": {
+            "x": 540,
+            "y": 0,
+            "w": 900,
+            "h": 80
+          }
+        },
+        {
+          "item": "viz_event_distribution",
+          "type": "block",
+          "position": {
+            "x": 540,
+            "y": 90,
+            "w": 290,
+            "h": 150
+          }
+        },
+        {
+          "item": "viz_event_trends",
+          "type": "block",
+          "position": {
+            "x": 0,
+            "y": 250,
+            "w": 1440,
+            "h": 240
+          }
+        },
+        {
+          "item": "viz_sources",
+          "type": "block",
+          "position": {
+            "x": 1150,
+            "y": 90,
+            "w": 290,
+            "h": 150
+          }
+        },
+        {
+          "item": "viz_sourcetypes",
+          "type": "block",
+          "position": {
+            "x": 840,
+            "y": 90,
+            "w": 300,
+            "h": 150
+          }
+        },
+        {
+          "item": "viz_background_rectangle",
+          "type": "block",
+          "position": {
+            "x": 0,
+            "y": 490,
+            "w": 1440,
+            "h": 470
+          }
+        },
+        {
+          "item": "viz_cim_header",
+          "type": "block",
+          "position": {
+            "x": 0,
+            "y": 500,
+            "w": 1440,
+            "h": 30
+          }
+        },
+        {
+          "item": "viz_hosts_seen",
+          "type": "block",
+          "position": {
+            "x": 290,
+            "y": 0,
+            "w": 240,
+            "h": 240
+          }
+        },
+        {
+          "item": "viz_cim_1",
+          "type": "block",
+          "position": {
+            "x": 10,
+            "y": 530,
+            "w": 700,
+            "h": 100
+          }
+        },
+        {
+          "item": "viz_coverage_1",
+          "type": "block",
+          "position": {
+            "x": 500,
+            "y": 530,
+            "w": 210,
+            "h": 100
+          }
+        },
+        {
+          "item": "viz_cim_2",
+          "type": "block",
+          "position": {
+            "x": 730,
+            "y": 530,
+            "w": 700,
+            "h": 100
+          }
+        },
+        {
+          "item": "viz_coverage_2",
+          "type": "block",
+          "position": {
+            "x": 1220,
+            "y": 530,
+            "w": 210,
+            "h": 100
+          }
+        },
+        {
+          "item": "viz_unsupported_types",
+          "type": "block",
+          "position": {
+            "x": 10,
+            "y": 640,
+            "w": 1420,
+            "h": 300
+          }
+        }
+      ],
+      "globalInputs": [
+        "input_global_timerange"
+      ]
+    }
+  }
+}
